@@ -36,6 +36,9 @@ final class Text {
     String today() { return ar ? "مواقيت اليوم والقبلة" : "Today & Qibla"; }
     String settings() { return ar ? "الإعدادات" : "Settings"; }
     String theme() { return ar ? "المظهر" : "Theme"; }
+    String themePrayer() { return ar ? "الصلاة" : "Prayer"; }
+    String themeNormal() { return ar ? "عادي" : "Normal"; }
+    String themeNow() { return ar ? "الآن" : "now"; }
     /** The saved city in this language; set by {@link Screen#loadText}. */
     String cityName = "";
     String city() { return cityName; }

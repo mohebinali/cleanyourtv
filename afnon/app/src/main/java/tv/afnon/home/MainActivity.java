@@ -224,6 +224,7 @@ public class MainActivity extends Screen {
         newRoot();
         card = null;   // a reminder card went with the old root
         radioCard = null;
+        themeCard = null;
         buildArch(488, 26, 12, Tokens.GOLD_200, 8);
 
         nodes[ARCH] = archButton();
@@ -375,13 +376,7 @@ public class MainActivity extends Screen {
             label.setTextColor(c);
             icon.setColor(c);
         });
-        b.setOnClickListener(v -> {
-            Intent i = normalHomeIntent();
-            if (i == null) return;           // not installed yet: the button simply rests
-            Prefs.setTheme(this, "normal");  // remembered, so the HOME key goes there too
-            startSafely(i);
-            finish();
-        });
+        b.setOnClickListener(v -> showThemeCard());
         nodeLabel[THEME] = t.theme();
         return b;
     }
@@ -760,6 +755,96 @@ public class MainActivity extends Screen {
         return b;
     }
 
+    // ---------------------------------------------------------------- theme card
+
+    /** The Theme menu, hanging from the Theme pill: this home, or the normal one. */
+    private LinearLayout themeCard;
+    private FocusTile themePrayer, themeNormal;
+
+    private void showThemeCard() {
+        if (themeCard != null || radioCard != null || card != null) return;
+        themeCard = new LinearLayout(this);
+        themeCard.setOrientation(LinearLayout.VERTICAL);
+        themeCard.setPadding(Ui.ipx(24), Ui.ipx(22), Ui.ipx(24), Ui.ipx(22));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Tokens.LAPIS_700);
+        bg.setCornerRadius(Ui.px(24));
+        bg.setStroke(Ui.ipx(2), Tokens.GOLD_400_60);
+        themeCard.setBackground(bg);
+        themeCard.setClipChildren(false);
+        themeCard.setClipToPadding(false);
+
+        TextView label = caps(text(ui400, 20, Tokens.MIST_400));
+        label.setText(t.theme());
+        themeCard.addView(label);
+
+        float r = FocusTile.REACH;
+        themePrayer = themeRow(t.themePrayer(), true);
+        themePrayer.setOnClickListener(v -> closeThemeCard(true));   // already the one on screen
+        themeNormal = themeRow(t.themeNormal(), false);
+        themeNormal.setOnClickListener(v -> {
+            Intent i = normalHomeIntent();
+            if (i == null) { closeThemeCard(true); return; }
+            Prefs.setTheme(this, "normal");   // remembered, so the HOME key goes there too
+            startSafely(i);
+            finish();
+        });
+        LinearLayout.LayoutParams a = new LinearLayout.LayoutParams(-1, Ui.ipx(68 + 2 * r));
+        a.topMargin = Ui.ipx(14 - r);
+        a.setMarginStart(-Ui.ipx(r));
+        themeCard.addView(themePrayer, a);
+        LinearLayout.LayoutParams n = new LinearLayout.LayoutParams(-1, Ui.ipx(68 + 2 * r));
+        n.topMargin = Ui.ipx(10 - 2 * r);
+        n.setMarginStart(-Ui.ipx(r));
+        themeCard.addView(themeNormal, n);
+
+        // Hangs from the header like the radio card, end-aligned with the Settings button.
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.ipx(440), -2, Gravity.TOP | Gravity.END);
+        lp.setMarginEnd(Ui.ipx(1920 - (Tokens.COURT_X + Tokens.COURT_W)));
+        lp.topMargin = Ui.ipx(56 + 72 + 24);
+        root.addView(themeCard, lp);
+        for (View v : nodes) if (v != null) v.setFocusable(false);
+        themePrayer.requestFocus();
+    }
+
+    private FocusTile themeRow(String title, boolean current) {
+        FocusTile b = new FocusTile(this, 34);
+        b.setRest(Tokens.LAPIS_900, current ? Tokens.GOLD_400_60 : Tokens.LINE_SOFT, 2);
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.ipx(26), 0, Ui.ipx(26), 0);
+        Icon icon = new Icon(this, Icon.STAR, 2f);
+        TextView v = text(ui400, 26, Tokens.PLASTER_100);
+        v.setText(title);
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.ipx(26), Ui.ipx(26)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
+        lp.setMarginStart(Ui.ipx(14));
+        row.addView(v, lp);
+        TextView now = null;
+        if (current) {
+            now = text(ui400, 20, Tokens.GOLD_400);
+            now.setText(t.themeNow());
+            row.addView(now, new LinearLayout.LayoutParams(-2, -2));
+        }
+        final TextView nowRef = now;
+        b.addView(row, new FrameLayout.LayoutParams(-1, -1));
+        b.setLook(f -> {
+            int c = f ? Tokens.LAPIS_900 : Tokens.PLASTER_100;
+            v.setTextColor(c);
+            icon.setColor(c);
+            if (nowRef != null) nowRef.setTextColor(f ? Tokens.LAPIS_900 : Tokens.GOLD_400);
+        });
+        return b;
+    }
+
+    private void closeThemeCard(boolean focusPill) {
+        if (themeCard == null) return;
+        root.removeView(themeCard);
+        themeCard = null;
+        for (View v : nodes) if (v != null) v.setFocusable(true);
+        if (focusPill) nodes[THEME].requestFocus();
+    }
+
     private void closeRadioCard(boolean focusPill) {
         if (radioCard == null) return;
         root.removeView(radioCard);
@@ -872,6 +957,19 @@ public class MainActivity extends Screen {
                 }
                 return true;
             }
+        }
+        if (themeCard != null) {
+            if (k == KeyEvent.KEYCODE_BACK) {
+                if (e.getAction() == KeyEvent.ACTION_UP) closeThemeCard(true);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (e.getAction() == KeyEvent.ACTION_DOWN)
+                    (k == KeyEvent.KEYCODE_DPAD_DOWN ? themeNormal : themePrayer).requestFocus();
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT) return true;
+            return super.dispatchKeyEvent(e);
         }
         if (radioCard != null) {
             if (k == KeyEvent.KEYCODE_BACK) {
