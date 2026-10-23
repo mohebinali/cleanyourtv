@@ -145,4 +145,8 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+    <string name="theme">Theme</string>
+    <string name="theme_prayer">Prayer</string>
+    <string name="theme_normal">Normal</string>
+    <string name="theme_current">now</string>
 </resources>

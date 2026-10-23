@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'tv.afnon.home'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'tv.afnon.home'
+        minSdk 26
+        targetSdk 34
+        versionCode 8
+        versionName '0.5'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // One key for every build, so an update installs over the last one instead of
+    // being refused for a signature mismatch. Gradle's own debug key is generated
+    // per machine, and CI runners are new each time, so it changes on every run.
+    signingConfigs {
+        shared {
+            storeFile file('../signing/afnon.p12')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeType 'PKCS12'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+    }
+}
+
+dependencies {
+    // Offline prayer-time calculation (no network, no transitive dependencies).
+    implementation 'com.batoulapps.adhan:adhan:1.2.1'
+}

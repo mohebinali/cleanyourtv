@@ -171,6 +171,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView greeting;
     private View clockBlock;
     private View btnInputs;
+    /** The Theme pill: switches between this home and Afnon's prayer home. */
+    private View btnTheme;
+    /** Afnon keeps the chosen theme, because it is the launcher the HOME key reaches. */
+    private static final String AFNON = "tv.afnon.home";
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
     private TextView btnWifi;
@@ -592,6 +596,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
+        btnTheme = findViewById(R.id.btnTheme);
+        if (getPackageManager().getLaunchIntentForPackage(AFNON) == null) btnTheme.setVisibility(View.GONE);
+        else btnTheme.setOnClickListener(v -> showThemeMenu());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -678,7 +685,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnSettings}) {
+            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnTheme, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -2858,6 +2865,48 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int alignment = getResources().getBoolean(R.bool.rtl_menu_bar) != underGear ? Gravity.END : Gravity.START;
         dropIn(popup, panel, anchor, alignment);
         rows.getChildAt(0).requestFocus();
+    }
+
+    /**
+     * The Theme menu: this home, or Afnon's prayer home. Android gives an app no way to set the
+     * system's default launcher, so the choice is stored by Afnon, which is the one HOME reaches:
+     * picking Prayer hands the choice to it, and it renders the arch instead of coming back here.
+     */
+    private void showThemeMenu() {
+        View anchor = btnTheme;
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        int width = Math.max(anchor.getWidth(), (int) (190 * density));
+        final PopupWindow popup = glassPopup(panel, width);
+
+        addThemeRow(rows, popup, getString(R.string.theme_prayer), false, () -> {
+            Intent i = getPackageManager().getLaunchIntentForPackage(AFNON);
+            if (i == null) return;
+            i.putExtra("theme", "prayer");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(i);
+        });
+        addThemeRow(rows, popup, getString(R.string.theme_normal), true, () -> { });
+
+        popup.showAsDropDown(anchor, 0, (int) (6 * density));
+    }
+
+    private void addThemeRow(LinearLayout rows, final PopupWindow popup, String title,
+                             boolean current, final Runnable action) {
+        View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
+        ((ImageView) row.findViewById(R.id.icon)).setImageResource(R.drawable.ic_picture);
+        ((TextView) row.findViewById(R.id.title)).setText(title);
+        TextView status = row.findViewById(R.id.status);
+        View dot = row.findViewById(R.id.dot);
+        if (current) {
+            status.setText(R.string.theme_current);
+            dot.setVisibility(View.VISIBLE);
+        } else {
+            status.setVisibility(View.GONE);
+            dot.setVisibility(View.GONE);
+        }
+        row.setOnClickListener(v -> { popup.dismiss(); action.run(); });
+        rows.addView(row);
     }
 
     private PopupWindow glassPopup(View panel, int width) {

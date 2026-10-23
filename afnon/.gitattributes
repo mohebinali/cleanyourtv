@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.ttf binary
+*.jar binary
+*.mp3 binary
+site/** linguist-documentation
+site/package-lock.json linguist-generated

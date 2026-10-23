@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Afnon" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/lapis_900</item>
+        <item name="android:colorBackground">@color/lapis_900</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+    </style>
+
+    <!-- The call to prayer: drawn over whatever was on, which shows faintly through its dimmed ground. -->
+    <style name="Theme.Afnon.Call">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
+</resources>

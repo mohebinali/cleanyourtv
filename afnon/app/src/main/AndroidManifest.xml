@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Quran Radio: the stream, keeping the CPU and Wi-Fi awake under the screensaver, its level bars
+         (RECORD_AUDIO, granted with pm grant at install) and the TV's sleep timer (WRITE_SECURE_SETTINGS, also
+         pm grant), which is off only while the radio plays. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Reading the Wi-Fi network name needs location on Android 9+. Granted with pm grant at install,
+         never requested at runtime. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        tools:ignore="CoarseFineLocation" />
+
+    <!-- Android 11+ package visibility, so the app tiles can resolve the apps they launch. -->
+    <queries>
+        <!-- CVTE firmwares answer the remote's buttons in this service; FirmwareKeys then leaves keys alone. -->
+        <intent>
+            <action android:name="android.intent.action.HOTKEYSERVICE" />
+        </intent>
+        <!-- CVTE's source menu, which Home opens for the Source button (FirmwareKeys.sourceMenu). -->
+        <package android:name="com.cvte.tv.globalui" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- TCL's Audio Only panel service (ScreenOffActivity), in com.android.tv.settings or com.tcl.settings. -->
+        <intent>
+            <action android:name="com.tcl.settings.SHOW_WINDOW" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_arch"
+        android:banner="@drawable/banner"
+        android:theme="@style/Theme.Afnon"
+        android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security"
+        android:allowBackup="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:clearTaskOnLaunch="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".AllAppsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape" />
+
+        <activity
+            android:name=".PrayerDayActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape" />
+
+        <!-- Also the remote's Settings button, from any app: its own task, so Back returns to what was playing. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="tv.afnon.home.settings"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape" />
+
+        <!-- The call to prayer, opened by the remote buttons service. Its own task, so closing it returns to
+             whatever app was playing rather than to Home. -->
+        <activity
+            android:name=".NowActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity="tv.afnon.home.call"
+            android:theme="@style/Theme.Afnon.Call"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape" />
+
+        <!-- Listening to the radio with the screen off. -->
+        <activity
+            android:name=".ScreenOffActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
+            android:screenOrientation="landscape" />
+
+        <!-- The screensaver. Made the TV's own with:
+             settings put secure screensaver_components tv.afnon.home/.AfnonDream -->
+        <service
+            android:name=".AfnonDream"
+            android:label="@string/app_name"
+            android:exported="true"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <!-- Remote buttons. Turned on with:
+             settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys -->
+        <service
+            android:name=".RemoteKeys"
+            android:label="@string/remote_keys"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/remote_keys" />
+        </service>
+    </application>
+</manifest>

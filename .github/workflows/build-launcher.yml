@@ -1,10 +1,11 @@
-name: Build Launcher
+name: Build Homes
 
 on:
   push:
     branches: [main]
     paths:
       - 'launcher/**'
+      - 'afnon/**'
       - '.github/workflows/build-launcher.yml'
   workflow_dispatch:
 
@@ -14,9 +15,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: launcher
     steps:
       - uses: actions/checkout@v4
 
@@ -26,33 +24,41 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # The runner image already has the Android SDK; no setup action needed.
+      # The runner image already ships the Android SDK.
       - name: Show the SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+        run: echo "ANDROID_HOME=$ANDROID_HOME"
 
-      - name: Build release APK
+      - name: Build the normal home (launcher)
+        working-directory: launcher
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Collect the APK
+      - name: Fetch adhan audio (non-fatal)
+        working-directory: afnon
+        run: bash tools/fetch-adhans.sh || echo "adhan fetch skipped"
+
+      - name: Build the prayer home (afnon)
+        working-directory: afnon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Collect both APKs
         run: |
           mkdir -p out
-          APK="$(find app/build/outputs/apk/release -name '*.apk' | head -1)"
-          echo "built: $APK"
-          cp "$APK" out/tvhome.apk
+          cp "$(find launcher/app/build/outputs/apk/release -name '*.apk' | head -1)" out/tvhome.apk
+          cp "$(find afnon/app/build/outputs/apk/debug   -name '*.apk' | head -1)" out/afnon.apk
           ls -la out/
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tvhome-apk
-          path: launcher/out/tvhome.apk
+          name: homes
+          path: out/*.apk
           retention-days: 30
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: tvhome-${{ github.run_number }}
-          name: TV Home build ${{ github.run_number }}
-          files: launcher/out/tvhome.apk
+          tag_name: homes-${{ github.run_number }}
+          name: Homes build ${{ github.run_number }}
+          files: |
+            out/tvhome.apk
+            out/afnon.apk
