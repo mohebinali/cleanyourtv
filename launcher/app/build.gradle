@@ -15,6 +15,19 @@ android {
         versionName '2.7'
     }
 
+    // One fixed key for every build. signingConfigs.debug uses ~/.android/debug.keystore,
+    // which is generated per machine, so each CI runner produced a differently-signed APK
+    // and Android refused to install it over the last one.
+    signingConfigs {
+        shared {
+            storeFile file('../signing/tvhome.p12')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeType 'PKCS12'
+        }
+    }
+
     buildTypes {
         release {
             // R8 strips and optimises the code (AndroidX included): smaller APK, faster start on a slow TV CPU.
@@ -22,7 +35,7 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // Sideloaded over ADB, never published: sign with the debug key so it installs over a debug build.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.shared
         }
     }
 
