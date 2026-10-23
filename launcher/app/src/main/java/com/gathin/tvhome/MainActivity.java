@@ -597,7 +597,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
         btnTheme = findViewById(R.id.btnTheme);
-        if (getPackageManager().getLaunchIntentForPackage(AFNON) == null) btnTheme.setVisibility(View.GONE);
+        if (afnonIntent() == null) btnTheme.setVisibility(View.GONE);
         else btnTheme.setOnClickListener(v -> showThemeMenu());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
@@ -2872,6 +2872,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * system's default launcher, so the choice is stored by Afnon, which is the one HOME reaches:
      * picking Prayer hands the choice to it, and it renders the arch instead of coming back here.
      */
+    /** Afnon declares LEANBACK_LAUNCHER, not LAUNCHER, so getLaunchIntentForPackage returns null for it. */
+    private Intent afnonIntent() {
+        PackageManager pm = getPackageManager();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(AFNON);
+        return i != null ? i : pm.getLaunchIntentForPackage(AFNON);
+    }
+
     private void showThemeMenu() {
         View anchor = btnTheme;
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
@@ -2880,7 +2887,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final PopupWindow popup = glassPopup(panel, width);
 
         addThemeRow(rows, popup, getString(R.string.theme_prayer), false, () -> {
-            Intent i = getPackageManager().getLaunchIntentForPackage(AFNON);
+            Intent i = afnonIntent();
             if (i == null) return;
             i.putExtra("theme", "prayer");
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);

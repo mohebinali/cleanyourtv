@@ -107,13 +107,22 @@ public class MainActivity extends Screen {
     }
 
     private boolean wantsNormal() {
-        return "normal".equals(Prefs.theme(this))
-                && getPackageManager().getLaunchIntentForPackage(NORMAL_HOME) != null;
+        return "normal".equals(Prefs.theme(this)) && normalHomeIntent() != null;
     }
 
     private void openNormalHome() {
-        Intent i = getPackageManager().getLaunchIntentForPackage(NORMAL_HOME);
+        Intent i = normalHomeIntent();
         if (i != null) startSafely(i);
+    }
+
+    /**
+     * A TV app declares LEANBACK_LAUNCHER, not LAUNCHER, so getLaunchIntentForPackage finds nothing and
+     * returns null. Ask for the leanback entry point first and keep the other only as a fallback.
+     */
+    private Intent normalHomeIntent() {
+        PackageManager pm = getPackageManager();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(NORMAL_HOME);
+        return i != null ? i : pm.getLaunchIntentForPackage(NORMAL_HOME);
     }
 
     @Override
@@ -367,7 +376,7 @@ public class MainActivity extends Screen {
             icon.setColor(c);
         });
         b.setOnClickListener(v -> {
-            Intent i = getPackageManager().getLaunchIntentForPackage(NORMAL_HOME);
+            Intent i = normalHomeIntent();
             if (i == null) return;           // not installed yet: the button simply rests
             Prefs.setTheme(this, "normal");  // remembered, so the HOME key goes there too
             startSafely(i);

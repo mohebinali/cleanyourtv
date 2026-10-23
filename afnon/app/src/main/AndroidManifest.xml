@@ -22,6 +22,8 @@
 
     <!-- Android 11+ package visibility, so the app tiles can resolve the apps they launch. -->
     <queries>
+        <!-- The normal home, offered by the Theme pill. -->
+        <package android:name="com.gathin.tvhome" />
         <!-- CVTE firmwares answer the remote's buttons in this service; FirmwareKeys then leaves keys alone. -->
         <intent>
             <action android:name="android.intent.action.HOTKEYSERVICE" />
