@@ -49,8 +49,15 @@ jobs:
           mkdir -p out
           cp "$(find launcher/app/build/outputs/apk/release -name '*.apk' | head -1)" out/tvhome.apk
           cp "$(find afnon/app/build/outputs/apk/debug   -name '*.apk' | head -1)" out/afnon.apk
-          cp "$(find addons/weather/app/build/outputs/apk/release -name '*.apk' | head -1)" out/weather.apk
+          echo "--- weather add-on outputs ---"
+          ls -la addons/weather/app/build/outputs/apk/release/
+          cp addons/weather/app/build/outputs/apk/release/app-release.apk out/weather.apk
           ls -la out/
+          # A release APK with no classes.dex is a stripped intermediate, not an app: fail here
+          # rather than publishing something that cannot install.
+          for a in out/*.apk; do
+            unzip -l "$a" | grep -q classes.dex || { echo "ERROR: $a has no code"; exit 1; }
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
