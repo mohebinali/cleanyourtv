@@ -273,6 +273,20 @@
                     </LinearLayout>
                 </LinearLayout>
 
+                <!-- Under the clock: the temperature and relative humidity for the configured city. -->
+                <TextView
+                    android:id="@+id/weatherLine"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="left"
+                    android:textColor="#A6FFFFFF"
+                    android:textSize="14sp"
+                    android:fontFamily="@string/font_regular"
+                    android:letterSpacing="0.14"
+                    android:singleLine="true"
+                    android:visibility="gone" />
+
             </LinearLayout>
 
             <!-- Shown only when show_stats is on. Outside leftBlock, so the top buttons stay level with the clock

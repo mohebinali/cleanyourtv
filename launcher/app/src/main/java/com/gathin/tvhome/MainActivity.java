@@ -169,6 +169,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean animations;
     private boolean advancedEffects;
     private TextView greeting;
+    /** Temperature and humidity under the clock; hidden until the first reading lands. */
+    private TextView weatherLine;
     private View clockBlock;
     private View btnInputs;
     /** The Theme pill: switches between this home and Afnon's prayer home. */
@@ -342,6 +344,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void run() {
             updateGreeting();
+            updateWeather();
             updateRace();
             // The pill follows the network callbacks and each return to Home; only the diya's flame follows the
             // signal level, so only it needs this minute's binder calls (about 7 ms on the UI thread).
@@ -425,6 +428,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
         greeting = findViewById(R.id.greeting);
+        weatherLine = findViewById(R.id.weatherLine);
+        updateWeather();
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
         if (getResources().getBoolean(R.bool.rtl_menu_bar)) {
@@ -2252,6 +2257,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             handler.postDelayed(clockCheck, 1_000L);
         }
+    }
+
+    /**
+     * Draws whatever reading we have, then asks for a fresh one if it has gone stale. Nothing blocks:
+     * the fetch is on its own thread and posts back here, and with no network the old line simply stays.
+     */
+    private void updateWeather() {
+        if (weatherLine == null) return;
+        String line = Weather.line(this);
+        weatherLine.setText(line);
+        weatherLine.setVisibility(line.isEmpty() ? View.GONE : View.VISIBLE);
+        Weather.refresh(this, this::updateWeather);
     }
 
     private void updateGreeting() {

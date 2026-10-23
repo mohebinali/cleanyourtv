@@ -40,11 +40,16 @@ jobs:
         working-directory: afnon
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Build the Weather add-on
+        working-directory: addons/weather
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
       - name: Collect both APKs
         run: |
           mkdir -p out
           cp "$(find launcher/app/build/outputs/apk/release -name '*.apk' | head -1)" out/tvhome.apk
           cp "$(find afnon/app/build/outputs/apk/debug   -name '*.apk' | head -1)" out/afnon.apk
+          cp "$(find addons/weather/app/build/outputs/apk/release -name '*.apk' | head -1)" out/weather.apk
           ls -la out/
 
       - name: Upload artifacts
@@ -62,3 +67,4 @@ jobs:
           files: |
             out/tvhome.apk
             out/afnon.apk
+            out/weather.apk
