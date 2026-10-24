@@ -18,7 +18,8 @@ import java.util.Map;
  * Remote buttons that only the stock launcher answered, from any app: the app buttons, Settings, Input and All
  * apps. Every other key passes through untouched. Taken over from the cleanyourtv launcher's InputKeyService and
  * HomeKeyService so that package can be disabled. Keys injected over ADB never reach this; test with the remote.
- * Being always on, it also hosts {@link PrayerWatch}: the reminders and the call to prayer.
+ * Being always on, it also hosts {@link PrayerWatch}: the reminders and the call to prayer, and {@link HomeTakeover},
+ * which keeps HOME on Afnon where the firmware ignores the default Home (Google TV with its launcher enabled).
  *
  * On TCL firmwares the buttons are handed to TCL's own key remapping ({@link TclKeys}) and this service stops
  * filtering keys: filtered keys lose their auto-repeat, so holding Volume moved it only one step. Firmwares that
@@ -43,6 +44,7 @@ public class RemoteKeys extends AccessibilityService {
     private final Map<Integer, String> appKeys = new HashMap<>();
     /** The running watch, for Home's test hook; null while the service is off. */
     static PrayerWatch watch;
+    private HomeTakeover takeover;
 
     @Override
     protected void onServiceConnected() {
@@ -59,18 +61,28 @@ public class RemoteKeys extends AccessibilityService {
         if (watch != null) watch.stop();
         watch = new PrayerWatch(this);
         watch.start();
+        if (takeover != null) takeover.stop();
+        takeover = new HomeTakeover(this);
+        takeover.start();
     }
 
     @Override
     public void onDestroy() {
         if (watch != null) watch.stop();
         watch = null;
+        if (takeover != null) takeover.stop();
+        takeover = null;
         super.onDestroy();
     }
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
+        if (code == KeyEvent.KEYCODE_HOME) {
+            // Seen, never swallowed: the system handles Home, then HomeTakeover may put Afnon over the stock home.
+            if (takeover != null) takeover.onHomeKey(event);
+            return false;
+        }
         String app = appKeys.get(code);
         Intent open;
         if (app != null) open = null;
@@ -142,6 +154,7 @@ public class RemoteKeys extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         Redirects.onWindowChanged(this, event);
+        if (takeover != null) takeover.onWindowChanged(event);
     }
 
     @Override

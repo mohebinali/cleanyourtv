@@ -78,6 +78,9 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
     recitation keeps playing.
 - **Remote buttons.** An accessibility service maps the remote's app buttons, and its Settings,
   Input and All apps buttons, to Afnon. The stock home's background service can then be disabled.
+  On Google TV, where the stock launcher keeps Home for as long as it is enabled, the same service puts
+  Afnon over the stock home screen whenever it comes up (`HomeTakeover.java`), so the launcher and the
+  setup wizard can stay enabled. Casting needs the wizard: the Cast receiver loads its credentials from it.
 - **Arabic and English.** RTL and LTR layouts. Language follows the TV or is set in Afnon. Digits
   are Arabic-Indic or Latin.
 - **Light on the TV.** Plain Java and Views, with no AndroidX, Kotlin or Compose. No blur, no
@@ -85,13 +88,14 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
 
 ## Privacy
 
-Afnon has **no accounts, no analytics and no ads**. The radio is the only feature that uses the
-internet, and it connects only to the chosen station's stream, one at a time: `stream.radiojar.com` (Cairo),
+Afnon has **no accounts, no analytics and no ads**. Two features use the internet. The radio connects
+only to the chosen station's stream, one at a time: `stream.radiojar.com` (Cairo),
 `quran-radio.org` (Nablus), `streaming.zaytonatube.com` (Shabab FM), `live.kwikmotion.com` (Qatar),
-`jrtv-live.ercdn.net` (Jordan) or `backup.qurango.net` (the reciters). The list is in `Radio.STATIONS`. Afnon
-makes no other network requests, and its [network security config](app/src/main/res/xml/network_security.xml)
-allows plain HTTP for the Cairo stream only.
-Your city and settings stay on the TV.
+`jrtv-live.ercdn.net` (Jordan) or `backup.qurango.net` (the reciters). The list is in `Radio.STATIONS`. The
+weather line asks `api.open-meteo.com` over HTTPS for the current weather at the chosen city's coordinates, at
+most every 30 minutes. Afnon makes no other network requests, and its
+[network security config](app/src/main/res/xml/network_security.xml) allows plain HTTP for the Cairo stream only.
+Your settings stay on the TV; the weather request carries only the city's coordinates.
 
 The [web preview](https://egyjs.github.io/afnon-android-tv-launcher/) is a separate static site, not the app. It loads
 nothing from other sites except the station's stream when you press Play, and keeps your settings in your browser.
@@ -122,6 +126,8 @@ adb -s $TV shell pm grant tv.afnon.home android.permission.ACCESS_FINE_LOCATION
 ```
 
 Then turn on **Afnon remote buttons** in the TV's Settings → Accessibility. The APK includes the adhan recordings.
+On Google TV that service is also what keeps Home on Afnon: `set-home-activity` prints `Success` there and Home
+still opens the stock launcher, which should stay enabled.
 
 ### From source
 
@@ -216,6 +222,7 @@ app/src/main/java/tv/afnon/home/
   AfnonDream          Screensaver
   PrayerWatch         Reminders, banner and the call, run inside the accessibility service
   RemoteKeys          Remote button mapping
+  HomeTakeover        Home on Afnon where the firmware keeps it on the stock launcher (Google TV)
   TclKeys             The same buttons through TCL's own remapping, so held keys still repeat
   Radio, RadioBars    Quran Radio player and its level bars
   ScreenOffActivity   Screen off while listening (TCL Audio Only, or a black fallback)

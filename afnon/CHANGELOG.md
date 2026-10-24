@@ -4,6 +4,21 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.6] - 2026-10-24
+
+### Added
+- Home on Google TV with its launcher still enabled. There `cmd package set-home-activity` prints `Success` and
+  the Home key keeps opening the stock launcher, and disabling that launcher is unsafe while the setup wizard is
+  enabled, which casting needs (the Cast receiver loads its credentials from it). The remote buttons service now
+  puts Afnon over the stock home screen when it comes up, at boot too (an invisible probe screen, once per boot),
+  and on a short Home press while it is already showing. Only while Afnon holds the Home role and Home still
+  reaches another launcher, never over the setup wizard, and not over voice search results. If Afnon does not stay
+  up (four bounces back to the stock home within seconds), it leaves the stock home alone for a minute. Made for a
+  Chromecast with Google TV 4K, Google TV 14, UTTC.250917.004.
+- Theme pill: Home is either this prayer home or the cleanyourtv home, chosen from a menu on either one and
+  remembered here, since Afnon is the launcher the Home key reaches.
+- Weather under the date (temperature, sky and humidity for the chosen city), from Open-Meteo.
+
 ## [0.5] - 2026-10-22
 
 ### Added

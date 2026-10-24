@@ -24,6 +24,11 @@
     <queries>
         <!-- The normal home, offered by the Theme pill. -->
         <package android:name="com.gathin.tvhome" />
+        <!-- HomeTakeover: which launcher the HOME key reaches, and that launcher's home screens. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
         <!-- CVTE firmwares answer the remote's buttons in this service; FirmwareKeys then leaves keys alone. -->
         <intent>
             <action android:name="android.intent.action.HOTKEYSERVICE" />
@@ -117,6 +122,15 @@
             android:noHistory="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
             android:screenOrientation="landscape" />
+
+        <!-- Opened once at boot by HomeTakeover and closed at once, so whatever is behind it sends a window event. -->
+        <activity
+            android:name=".ProbeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- The screensaver. Made the TV's own with:
              settings put secure screensaver_components tv.afnon.home/.AfnonDream -->
