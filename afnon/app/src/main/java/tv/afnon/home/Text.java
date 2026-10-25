@@ -354,4 +354,10 @@ final class Text {
     }
 
     String hijriSuffix() { return ar ? " هـ" : " AH"; }
+
+    /** A day's name over its column in the week's weather; isoDay as java.time numbers it, 1 Monday to 7 Sunday. */
+    String weekday(int isoDay) { return (ar ? WEEKDAYS_AR : WEEKDAYS_EN)[isoDay - 1]; }
+
+    private static final String[] WEEKDAYS_EN = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+    private static final String[] WEEKDAYS_AR = {"الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"};
 }

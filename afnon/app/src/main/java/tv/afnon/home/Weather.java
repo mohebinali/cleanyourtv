@@ -5,16 +5,23 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The weather beside the dates, for the city already chosen for prayer times.
+ * The weather beside the dates, for the city already chosen for prayer times: today's line under them, and the
+ * week ahead ({@link WeekView}) at their end. One call brings both.
  *
  * Open-Meteo, no key and no account. The call is the only one Afnon makes besides the radio, so it keeps the
  * app's habits: never on the main thread, never blocking a draw, and silent when there is no network — the
@@ -60,6 +67,48 @@ final class Weather {
         return t.d(b.toString());
     }
 
+    /** One day ahead: its date, WMO code, and high and low in °C. */
+    static final class Day {
+        final LocalDate date;
+        final int code, high, low;
+
+        Day(LocalDate date, int code, int high, int low) {
+            this.date = date;
+            this.code = code;
+            this.high = high;
+            this.low = low;
+        }
+    }
+
+    /**
+     * The week ahead from the last reading, today first. None until a reading lands, once it is too old to show, or
+     * while it belongs to another city than the chosen one, as with {@link #line}.
+     */
+    static Day[] week(Context c) {
+        SharedPreferences p = prefs(c);
+        long at = p.getLong("wx_at", 0L);
+        if (at == 0L || System.currentTimeMillis() - at > KEEP_MS) return new Day[0];
+        if (!Prefs.city(c).id.equals(p.getString("wx_city", ""))) return new Day[0];
+        List<Day> days = new ArrayList<>();
+        try {
+            JSONObject d = new JSONObject(p.getString("wx_days", "{}"));
+            JSONArray time = d.getJSONArray("time"), code = d.getJSONArray("weather_code");
+            JSONArray high = d.getJSONArray("temperature_2m_max"), low = d.getJSONArray("temperature_2m_min");
+            // A reading from last night still starts with yesterday; the week starts today.
+            LocalDate today = LocalDate.now();
+            for (int i = 0; i < time.length(); i++) {
+                LocalDate date = LocalDate.parse(time.getString(i));
+                double hi = high.optDouble(i), lo = low.optDouble(i);
+                if (date.isBefore(today) || Double.isNaN(hi) || Double.isNaN(lo)) continue;
+                days.add(new Day(date, code.optInt(i, -1), (int) Math.round(hi), (int) Math.round(lo)));
+            }
+        } catch (JSONException | DateTimeParseException e) {
+            // A reading saved before the week was added has no days: none rather than half a week.
+            return new Day[0];
+        }
+        return days.toArray(new Day[0]);
+    }
+
     /**
      * Fetch in the background if the last reading has gone stale, then hand the new line back on the main
      * thread. Safe to call on every tick: it does nothing while a call is already out or the reading is fresh.
@@ -69,7 +118,9 @@ final class Weather {
         final Context app = c.getApplicationContext();
         SharedPreferences p = prefs(app);
         boolean same = Prefs.city(app).id.equals(p.getString("wx_city", ""));
-        if (same && System.currentTimeMillis() - p.getLong("wx_at", 0L) < FRESH_MS) return;
+        // A reading from before the week was added has no days: not fresh, so the week comes at once.
+        boolean fresh = same && p.contains("wx_days") && System.currentTimeMillis() - p.getLong("wx_at", 0L) < FRESH_MS;
+        if (fresh) return;
         if (!inFlight.compareAndSet(false, true)) return;
 
         new Thread(() -> {
@@ -79,8 +130,8 @@ final class Weather {
                 String url = "https://api.open-meteo.com/v1/forecast"
                         + "?latitude=" + city.lat + "&longitude=" + city.lng
                         + "&current=temperature_2m,weather_code"
-                        + "&daily=temperature_2m_max,temperature_2m_min"
-                        + "&timezone=auto&forecast_days=1";
+                        + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+                        + "&timezone=auto&forecast_days=7";
                 JSONObject o = new JSONObject(get(url));
                 JSONObject cur = o.getJSONObject("current");
                 JSONObject day = o.getJSONObject("daily");
@@ -89,6 +140,8 @@ final class Weather {
                         .putInt("wx_code", cur.optInt("weather_code", -1))
                         .putInt("wx_hi", (int) Math.round(day.getJSONArray("temperature_2m_max").getDouble(0)))
                         .putInt("wx_lo", (int) Math.round(day.getJSONArray("temperature_2m_min").getDouble(0)))
+                        // The whole week as Open-Meteo sent it, read back by week().
+                        .putString("wx_days", day.toString())
                         // The city this call fetched, which may no longer be the chosen one by the time it answers.
                         .putString("wx_city", city.id)
                         .putLong("wx_at", System.currentTimeMillis())

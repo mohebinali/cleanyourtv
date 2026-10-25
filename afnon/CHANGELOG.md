@@ -4,6 +4,15 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.10] - 2026-10-26
+
+### Added
+- The week's weather beside the dates, under the header pills: a column a day with its name, a line symbol (sun,
+  sun behind a cloud, cloud, fog, drizzle, rain, snow or a storm), the high and the low, with today's name in gold.
+  As many days as fit beside the widest date line, up to seven, so a long Hijri month or city name is never drawn
+  over. It comes from the weather line's Open-Meteo call, which now asks for seven days instead of one; a reading
+  saved before the update is fetched again at once, so the week shows without waiting half an hour.
+
 ## [0.9] - 2026-10-25
 
 ### Removed

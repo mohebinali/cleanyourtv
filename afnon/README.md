@@ -43,7 +43,7 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
 | ![Home in English](docs/screenshots/home-en.png) | ![Today's prayers and Qibla](docs/screenshots/prayer-day.png) |
 | **Home (English).** The clock follows the TV's 12/24-hour setting. Gregorian and Hijri dates, six prayer times with the next one marked, favourites and more apps. | **Today's prayers.** Every time with its countdown, an adhan on/off bell per prayer, and the Qibla bearing from your city. |
 | ![Quran Radio card](docs/screenshots/radio.png) | ![Call to prayer](docs/screenshots/call.png) |
-| **Quran Radio.** A header pill opens the station card. The bars follow the live recitation. | **The call.** At prayer time the screen comes up over whatever is playing and the adhan plays by itself. |
+| **Quran Radio.** A header pill opens the station card. The bars breathe while it plays. | **The call.** At prayer time the screen comes up over whatever is playing and the adhan plays by itself. |
 | ![Reminder before the prayer](docs/screenshots/reminder.png) | ![Screensaver](docs/screenshots/screensaver.png) |
 | **Reminder.** A card a few minutes before the prayer (a banner when another app is open). | **Screensaver.** A dim, drifting arch with the clock and the next prayer, plus the radio when it plays. |
 | ![Friday](docs/screenshots/friday.png) | ![Ramadan](docs/screenshots/ramadan.png) |
@@ -67,12 +67,16 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   also say «اقترب موعد صلاة …», and when a prayer's adhan is off, «حان الآن موعد صلاة …» as its time begins
   (both lower whatever is playing for a moment instead of pausing it; see `tools/fetch-announce.sh` below).
 - **Friday and Ramadan.** Both modes switch themselves on from the date.
+- **The weather.** For the city the prayer times use, from [Open-Meteo](https://open-meteo.com/): today's
+  temperature, sky, high and low under the dates, and the week ahead beside them under the header pills, a column
+  a day with a symbol, the high and the low (today's name in gold). As many days as fit beside the dates, up to
+  seven.
 - **Quran Radio.** إذاعة القرآن الكريم from Cairo (98.2 FM) by default, streamed live. Settings → Radio
   → Station picks another:
   - Quran radios: Nablus, Shabab FM Quran (Nablus), Qatar 1 and 2, Jordan.
   - Ten reciters' 24/7 channels from mp3quran.net (Alafasy, Abdul Basit, Al-Minshawi, Al-Husary, Al-Muaiqly,
     Al-Ghamdi, Al-Sudais, Al-Dosari, Al-Qatami, Mohammad Rashad Al-Shareef).
-  - Live level bars, from the audio itself.
+  - Level bars that breathe while it plays (Afnon never reads the audio).
   - It pauses for the adhan and resumes after.
   - **Screen off while listening**, using TCL's own Audio Only mode: the panel goes dark and the
     recitation keeps playing.
@@ -92,8 +96,8 @@ Afnon has **no accounts, no analytics and no ads**. Two features use the interne
 only to the chosen station's stream, one at a time: `stream.radiojar.com` (Cairo),
 `quran-radio.org` (Nablus), `streaming.zaytonatube.com` (Shabab FM), `live.kwikmotion.com` (Qatar),
 `jrtv-live.ercdn.net` (Jordan) or `backup.qurango.net` (the reciters). The list is in `Radio.STATIONS`. The
-weather line asks `api.open-meteo.com` over HTTPS for the current weather at the chosen city's coordinates, at
-most every 30 minutes. Afnon makes no other network requests, and its
+weather asks `api.open-meteo.com` over HTTPS for the current weather and the week's forecast at the chosen city's
+coordinates, at most every 30 minutes. Afnon makes no other network requests, and its
 [network security config](app/src/main/res/xml/network_security.xml) allows plain HTTP for the Cairo stream only.
 Your settings stay on the TV; the weather request carries only the city's coordinates. Afnon never asks for the
 microphone (no `RECORD_AUDIO`), so the radio's level bars breathe rather than follow the voice.

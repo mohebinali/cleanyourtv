@@ -65,6 +65,8 @@ public class MainActivity extends Screen {
     private final String[] nodeLabel = new String[NODES];
 
     private TextView clock, gdate, hdate, wifiName, wx;
+    /** The week's weather beside the dates, under the pills. */
+    private WeekView week;
     private LinearLayout hints;
     private PrayerDay day;
     private long lastMinute = -1;
@@ -283,6 +285,14 @@ public class MainActivity extends Screen {
         lineHeight(clock, 1f);
         when.setClipChildren(false);
         place(when, Tokens.COURT_X, 56, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        // The week's weather in the corner the dates leave free, end-aligned with Settings and 16px under the pills.
+        // The dates' width changes with the month and the city, so the days that fit follow it.
+        week = new WeekView(this, ui400, ui500);
+        placeEnd(week, 1920 - (Tokens.COURT_X + Tokens.COURT_W), 56 + 72 + 16,
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        when.addOnLayoutChangeListener((v, l, top, r, b, ol, ot, or, ob) ->
+            week.setRoom(Tokens.COURT_W - (r - l) / Ui.scale - WeekView.GAP));
 
         // Radio and Wi-Fi side by side, ending 20px before the Settings button.
         nodes[RADIO] = radioPill();
@@ -538,8 +548,8 @@ public class MainActivity extends Screen {
         gdate.setText(gregorian(now));
         hdate.setText(hijri(day) + t.sep() + t.city());
         if (wx != null) {
-            wx.setText(Weather.line(this, t));
-            Weather.refresh(this, () -> { if (wx != null) wx.setText(Weather.line(this, t)); });
+            showWeather();
+            Weather.refresh(this, this::showWeather);
         }
 
         String[] names = t.prayerNames();
@@ -595,6 +605,13 @@ public class MainActivity extends Screen {
             cellTime[i].setTypeface(tf);
             if (!t.ar) cellTag[i].setLetterSpacing(0.2f);
         }
+    }
+
+    /** Today's line under the dates and the week beside them, from the last reading; Weather.refresh calls back here. */
+    private void showWeather() {
+        if (wx == null) return;
+        wx.setText(Weather.line(this, t));
+        week.setDays(Weather.week(this), t);
     }
 
     private void updateWifi() {
