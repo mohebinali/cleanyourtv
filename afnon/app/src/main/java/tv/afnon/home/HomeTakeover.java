@@ -3,7 +3,10 @@ package tv.afnon.home;
 import android.accessibilityservice.AccessibilityService;
 import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -27,26 +30,45 @@ import java.util.Set;
  * stay, because the Cast receiver loads its device credentials from it. So when the stock launcher's home screen
  * comes up, this opens Afnon over it, as the cleanyourtv launcher's stock_home_redirect does.
  *
+ * A Home press opens Afnon too, because with the stock home already in front Home only brings it up again, with no
+ * window event. Android announces each short press that goes home with ACTION_CLOSE_SYSTEM_DIALOGS, reason "homekey",
+ * whatever remote sent it: the only sign of a press from a TV remote over HDMI-CEC, whose keys are injected and never
+ * reach an accessibility service. The phone app's Home also arrives as a key; the two count as one press, and a press
+ * the stock home's window event has already answered opens nothing more.
+ *
  * It acts only while Afnon holds the Home role and HOME still reaches another launcher, so it does nothing where Afnon
- * really is Home, or where the stock home was kept on purpose. Hosted by RemoteKeys: its window events, and its Home
- * key while it filters keys.
+ * really is Home, or where the stock home was kept on purpose. Hosted by RemoteKeys: its window events, its Home key
+ * while it filters keys, and the Home broadcast, registered on it.
  */
 final class HomeTakeover {
 
+    /** The normal home, which Afnon hands Home on to when that is the chosen theme. */
+    private static final String NORMAL_HOME = "com.gathin.tvhome";
     /** Home screens never covered: the normal home, the resolver, the boot stand-in (FallbackHome), the wizard. */
     private static final Set<String> NEVER = new HashSet<>(Arrays.asList(
-            "com.gathin.tvhome", "android", "com.android.tv.settings", "com.google.android.tungsten.setupwraith"));
-    /** Google TV's Assistant shows its search results in the stock home screen, which then has to stay up. */
+            NORMAL_HOME, "android", "com.android.tv.settings", "com.google.android.tungsten.setupwraith"));
+    /**
+     * Google TV's Assistant shows its search results in the stock home screen, which then has to stay up. The stock
+     * home coming up this soon after the Assistant is taken for its results, and left up until Home is pressed or
+     * our own home comes up, so that Back from a video picked there still finds them.
+     */
     private static final String ASSISTANT = "com.google.android.katniss";
     private static final long ASSISTANT_MS = 15_000;
     /** How often the launcher HOME reaches is looked up again, in case the firmware changes it. */
     private static final long RESOLVE_MS = 30_000;
-    /** The system handles the Home key first, so a long press still opens Google TV's quick settings. */
+    /**
+     * A Home press opens Afnon this long after it, once the system has brought up the stock home, unless that home's
+     * window event has opened Afnon by then.
+     */
     private static final long HOME_KEY_DELAY_MS = 250;
-    /** One Home press can bring both a window event and the key: opens this close together count once. */
+    /**
+     * One appearance of the stock home can send two window events (shown, then focused). With nothing over the stock
+     * home since the last open, its events this soon after that open count once.
+     */
     private static final long SAME_PRESS_MS = 1_000;
-    /** The stock home coming back this soon after each open, this many times running, means Afnon isn't staying up
-     *  (a crash, say): the TV is then left on the stock home for a minute rather than looping. */
+    /** The stock home coming back this soon after each open, this many times running with no Home press in between,
+     *  means Afnon isn't staying up (a crash, say): the TV is then left on the stock home for a minute, Home presses
+     *  included, rather than looping. Pressing Home again and again never counts. */
     private static final long BOUNCE_MS = 3_000;
     private static final int MAX_BOUNCES = 4;
     private static final long PAUSE_MS = 60_000;
@@ -55,13 +77,24 @@ final class HomeTakeover {
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable openLater = this::open;
+    private final Runnable openLater = this::openIfUnanswered;
+    /** Android's broadcast for a short Home press, whatever remote sent it. */
+    private final BroadcastReceiver homeKeyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if ("homekey".equals(intent.getStringExtra("reason"))) onHomePress();
+        }
+    };
     /** The stock launcher's HOME activities; empty while Afnon owns Home or doesn't hold the role. */
     private final Set<String> stockHome = new HashSet<>();
     private String stockPackage;
     private long resolvedAt = -RESOLVE_MS;
     private long assistantAt = -ASSISTANT_MS;
+    /** The stock home is showing voice search results, so it stays up (see ASSISTANT). */
+    private boolean assistantResults;
     private long openedAt = -BOUNCE_MS;
+    /** The last Home press, and the last time a full screen other than the stock launcher's covered its home. */
+    private long pressedAt = Long.MIN_VALUE, coveredAt = Long.MIN_VALUE;
     private long pausedUntil;
     private int bounces;
 
@@ -71,14 +104,28 @@ final class HomeTakeover {
 
     void start() {
         resolve(SystemClock.elapsedRealtime());
+        IntentFilter filter = new IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            service.registerReceiver(homeKeyReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            service.registerReceiver(homeKeyReceiver, filter);
+        }
         if (!stockHome.isEmpty()) probeAtBoot();
     }
 
     void stop() {
         handler.removeCallbacks(openLater);
+        try {
+            service.unregisterReceiver(homeKeyReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // Already unregistered.
+        }
     }
 
-    /** Called for every window change: the stock home screen came up, so Afnon goes over it. */
+    /**
+     * Called for every window change: the stock home screen came up, so Afnon goes over it. Any other full screen
+     * covers the stock home, and the stock home coming back after one is a new appearance.
+     */
     void onWindowChanged(AccessibilityEvent e) {
         if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = e.getPackageName(), cls = e.getClassName();
@@ -89,30 +136,66 @@ final class HomeTakeover {
             return;
         }
         if (now - resolvedAt >= RESOLVE_MS) resolve(now);
-        if (stockHome.isEmpty() || !pkg.toString().equals(stockPackage) || !stockHome.contains(cls.toString())) return;
-        // Voice search: the results are in the stock home screen; leave them up.
-        if (now - assistantAt < ASSISTANT_MS) return;
+        boolean stockApp = pkg.toString().equals(stockPackage);
+        if (!stockApp || !stockHome.contains(cls.toString())) {
+            // Not the banner or a dialog, nor another screen of the stock launcher's own.
+            if (e.isFullScreen() && !stockApp) {
+                coveredAt = now;
+                // Our own home (the normal one, or Afnon's) came up: any voice search results were left.
+                if (NORMAL_HOME.contentEquals(pkg) || MainActivity.class.getName().contentEquals(cls)) {
+                    assistantResults = false;
+                }
+            }
+            return;
+        }
+        // Voice search: the results are in the stock home screen; leave them up, also when they come back later. A
+        // Home press still leaves them: openLater doesn't look at this.
+        if (assistantResults || now - assistantAt < ASSISTANT_MS) {
+            assistantResults = true;
+            return;
+        }
+        if (coveredAt < openedAt && now - openedAt < SAME_PRESS_MS) return;
         open();
     }
 
     /**
-     * The Home key, seen while RemoteKeys filters keys. When the stock home is already on screen (it came up at boot,
-     * before Android bound the service), Home brings it up again with no window change, so a short press opens Afnon
-     * once the system has handled the key. A long press is left alone.
+     * The Home key, seen while RemoteKeys filters keys (from the phone app, say; a TV remote's keys over HDMI-CEC
+     * never come here). A short press is a Home press, which its broadcast then joins. A long press is left alone.
      */
     void onHomeKey(KeyEvent event) {
-        if (stockHome.isEmpty()) return;
         if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()
                 && event.getEventTime() - event.getDownTime() < ViewConfiguration.getLongPressTimeout()) {
-            handler.removeCallbacks(openLater);
-            handler.postDelayed(openLater, HOME_KEY_DELAY_MS);
+            onHomePress();
         }
+    }
+
+    /**
+     * A short Home press, from the broadcast or the key. When the stock home is already on screen (it came up at boot,
+     * before Android bound the service, or stayed up for voice search results), Home brings it up again with no window
+     * change, so Afnon opens once the system has handled the press, unless a window event has opened it by then.
+     */
+    private void onHomePress() {
+        long now = SystemClock.elapsedRealtime();
+        // Home leaves voice search results.
+        assistantResults = false;
+        if (now - resolvedAt >= RESOLVE_MS) resolve(now);
+        if (stockHome.isEmpty()) return;
+        pressedAt = now;
+        // The key and its broadcast are one press: one open, after the later of the two.
+        handler.removeCallbacks(openLater);
+        handler.postDelayed(openLater, HOME_KEY_DELAY_MS);
+    }
+
+    /** openLater: Afnon opens for a press that no open has followed. Voice search results don't hold a press back. */
+    private void openIfUnanswered() {
+        if (!stockHome.isEmpty() && pressedAt > openedAt) open();
     }
 
     private void open() {
         long now = SystemClock.elapsedRealtime();
-        if (now < pausedUntil || now - openedAt < SAME_PRESS_MS) return;
-        bounces = now - openedAt < BOUNCE_MS ? bounces + 1 : 0;
+        if (now < pausedUntil) return;
+        // Back this soon with no Home press since the last open: Afnon didn't stay up.
+        bounces = pressedAt < openedAt && now - openedAt < BOUNCE_MS ? bounces + 1 : 0;
         openedAt = now;
         if (bounces >= MAX_BOUNCES) {
             bounces = 0;

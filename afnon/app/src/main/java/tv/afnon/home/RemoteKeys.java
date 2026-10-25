@@ -17,7 +17,8 @@ import java.util.Map;
 /**
  * Remote buttons that only the stock launcher answered, from any app: the app buttons, Settings, Input and All
  * apps. Every other key passes through untouched. Taken over from the cleanyourtv launcher's InputKeyService and
- * HomeKeyService so that package can be disabled. Keys injected over ADB never reach this; test with the remote.
+ * HomeKeyService so that package can be disabled. Injected keys never reach this, from ADB or from a TV remote over
+ * HDMI-CEC; test with the phone app's remote. HomeTakeover catches Home from any remote through its broadcast.
  * Being always on, it also hosts {@link PrayerWatch}: the reminders and the call to prayer, and {@link HomeTakeover},
  * which keeps HOME on Afnon where the firmware ignores the default Home (Google TV with its launcher enabled).
  *
