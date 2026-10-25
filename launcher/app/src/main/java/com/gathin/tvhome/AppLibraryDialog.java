@@ -526,7 +526,14 @@ final class AppLibraryDialog {
         boolean home = onHome.test(pkg);
         addAction(rows, home ? R.string.library_remove_shortcut : R.string.library_add_home,
                 () -> changeHome(app, !home));
-        addAction(rows, R.string.library_app_info, () -> {
+        // The tile menu's Uninstall; the catalogue already has the flags, so this costs no PackageManager call.
+        if (Uninstall.allowed(pkg, app.activityInfo.applicationInfo.flags)) {
+            addAction(rows, R.string.tile_uninstall, () -> {
+                close();
+                Uninstall.request(activity, pkg);
+            });
+        }
+        addAction(rows, R.string.tile_details, () -> {
             close();
             try {
                 activity.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg)));

@@ -204,7 +204,10 @@ final class Config {
     final boolean wallpaperCaptions;
     /** Answer VIEW_INPUTS with the Inputs menu (handle_view_inputs); see InputsRequestActivity. */
     final boolean handleViewInputs;
-    /** Hold OK on a tile opens a menu (Move, Remove from Home, App info) instead of App info (config.xml / theme tile_menu). */
+    /**
+     * Hold OK on a tile opens a menu instead of App info (config.xml / theme tile_menu): Move, Uninstall (only for
+     * apps the owner installed), Remove from Home (with app_library) and Details (the app's App info page).
+     */
     final boolean tileMenu;
 
     private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, List<String> libraryApps, String liveTvPackage,

@@ -31,19 +31,22 @@ subtle tint. Updating an existing app does not mark it as new.
 - Press OK on a missing app to add it to Home. Focus advances to the next missing
   app without following the new shortcut across the catalogue.
 - Press OK on a checked app to open it.
-- Hold OK for Open, Add to Home or Remove from Home, and App info. The menu uses
-  the existing Inputs dropdown resources and stays over the selected card.
+- Hold OK for Open, Add to Home or Remove from Home, Uninstall (only for apps the
+  owner installed; Android asks to confirm), and Details (App info, with the app's permissions). The menu uses the
+  existing Inputs dropdown resources and stays over the selected card.
 - Back closes the menu first, then the library. Down from the last Home row or
   Right from the final app reaches the library pill; Up returns to the last row.
   Hebrew mirrors the horizontal direction, so Left from the final app reaches it.
 
-With `tile_menu` on, holding OK on a Home tile offers Remove from Home as well, next to Move and App info.
+With `tile_menu` on, holding OK on a Home tile offers Remove from Home as well, next to Move, Uninstall
+(only for apps the owner installed) and Details (App info).
 The remote's Menu key opens that same menu on the focused tile. With `tile_menu` off,
 Menu keeps its normal behavior. Settings-key mappings take priority; Menu is left alone
 on header buttons, while another popup is open, and during reordering.
 Every checked app can be removed from Home, including the theme’s default apps.
 It stays installed and remains in the library, where one press adds it back.
-There is no hidden-app section and no uninstall action.
+There is no hidden-app section. Uninstall is a separate row that opens Android's own
+confirmation; the TV's own apps, this launcher and the Prayer home never get it.
 
 Choices are stored in the launcher’s private `library_apps.txt` and
 `library_home_removed.txt`, with at most 128 entries in each. Each file is written
@@ -56,6 +59,8 @@ are not edited. Disabling the library button keeps existing Home choices.
 The library uses the existing package receiver to refresh after app changes.
 Labels and Home membership are cached for each refresh; icons load only for
 bound cards. The highlight follows the launcher's animation setting, including
-instant movement when animations are off. There is no polling, network, backdrop capture, new service,
-permission or dependency. The additional manifest query covers ordinary
+instant movement when animations are off. There is no polling, network, backdrop capture, new service
+or dependency. Its Uninstall row, like the tile menu's, relies on `REQUEST_DELETE_PACKAGES`, which the
+launcher declares whether or not the library is on (a normal permission Android grants at install). The
+additional manifest query covers ordinary
 LAUNCHER activities on Android 11 and later.

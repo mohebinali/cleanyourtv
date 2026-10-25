@@ -56,7 +56,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         void onLibraryRequested();
         void onLibraryFocused();
-        /** Hold OK on a tile: the activity shows the tile menu (move, remove from Home, app info). */
+        /** Hold OK on a tile: the activity shows the tile menu (move, uninstall, remove from Home, details). */
         void onTileLongPress(int position, View card);
         void onLibraryUp();
     }

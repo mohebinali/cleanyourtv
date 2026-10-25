@@ -80,6 +80,8 @@
     <string name="dock_edit_pick_place">Kies de plek in het dock voor deze app en druk op OK. Terug om te annuleren.</string>
     <string name="reorder">Apps ordenen</string>
     <string name="tile_move">Verplaatsen</string>
+    <string name="tile_uninstall">Deïnstalleren</string>
+    <string name="tile_details">Details</string>
     <string name="reorder_hint">OK pakt een app op, de pijlen verplaatsen hem, Terug zet hem neer. Nog eens Terug om te stoppen.</string>
     <string name="reorder_not_saved">Kon de nieuwe volgorde niet opslaan</string>
     <string name="app_library">Appbibliotheek</string>

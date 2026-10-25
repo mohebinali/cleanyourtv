@@ -96,6 +96,8 @@
     <string name="dock_edit_pick_place">Виберіть місце в доку для цього застосунку та натисніть OK. «Назад» — скасувати.</string>
     <string name="reorder">Упорядкувати застосунки</string>
     <string name="tile_move">Перемістити</string>
+    <string name="tile_uninstall">Видалити</string>
+    <string name="tile_details">Докладніше</string>
     <string name="reorder_hint">OK бере застосунок, стрілки переміщують, «Назад» ставить на місце. Ще раз «Назад» — завершити.</string>
     <string name="reorder_not_saved">Не вдалося зберегти новий порядок</string>
     <string name="app_library">Бібліотека застосунків</string>

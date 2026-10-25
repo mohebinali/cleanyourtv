@@ -175,8 +175,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View btnInputs;
     /** The Theme pill: switches between this home and Afnon's prayer home. */
     private View btnTheme;
-    /** Afnon keeps the chosen theme, because it is the launcher the HOME key reaches. */
-    private static final String AFNON = "tv.afnon.home";
+    /** Afnon keeps the chosen theme, because it is the launcher the HOME key reaches. Uninstall never offers it. */
+    static final String AFNON = "tv.afnon.home";
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
     private TextView btnWifi;
@@ -3043,8 +3043,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /**
      * Hold OK on a tile: a glass menu next to it. Move starts reorder mode with this tile already picked up;
+     * Uninstall opens Android's own confirmation, only for an app the owner installed (see Uninstall);
      * Remove from Home takes the shortcut off (only with the app library on, where one press adds it back);
-     * App info opens the TV's page for the app, which is what holding OK used to do.
+     * Details opens the TV's App info page, with the app's permissions, which is what holding OK used to do.
      */
     @Override
     public void onTileLongPress(int position, View card) {
@@ -3069,11 +3070,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             pickUp(at);
             Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
         });
+        if (Uninstall.allowed(this, pkg)) addSettingsMenuRow(rows, popup, R.string.tile_uninstall,
+                () -> Uninstall.request(this, pkg));
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.library_remove_shortcut, () -> {
             if (LibraryApps.save(this, pkg, false)) reloadApps(false);
             else Toast.makeText(this, R.string.library_save_failed, Toast.LENGTH_LONG).show();
         });
-        addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> open(new Intent(
+        addSettingsMenuRow(rows, popup, R.string.tile_details, () -> open(new Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg))));
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));

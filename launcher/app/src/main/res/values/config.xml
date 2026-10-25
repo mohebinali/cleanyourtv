@@ -251,8 +251,9 @@
          group falls back to the whole collection; empty rotates through every picture. A theme can set
          "wallpaper_moods" as an object. -->
     <string name="wallpaper_moods" translatable="false"></string>
-    <!-- Hold OK on a tile opens a small menu: Move (picks the tile up for reordering), Remove from Home (only with
-         app_library) and App info. false keeps the old behaviour: holding OK opens the app's App info page.
+    <!-- Hold OK on a tile opens a small menu: Move (picks the tile up for reordering), Uninstall (only for apps the
+         owner installed), Remove from Home (only with app_library) and Details (the app's App info page).
+         false keeps the old behaviour: holding OK opens the app's App info page.
          Can also be set with "tile_menu": true in a theme's config.json. -->
     <bool name="tile_menu">false</bool>
 

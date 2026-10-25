@@ -70,6 +70,8 @@
     <string name="dock_edit_pick_place">Choisissez l\'emplacement du dock pour cette appli et appuyez sur OK. Retour pour annuler.</string>
     <string name="reorder">Réorganiser les applis</string>
     <string name="tile_move">Déplacer</string>
+    <string name="tile_uninstall">Désinstaller</string>
+    <string name="tile_details">Détails</string>
     <string name="reorder_hint">OK prend une appli, les flèches la déplacent, Retour la pose. Retour à nouveau pour terminer.</string>
     <string name="reorder_not_saved">Impossible d\'enregistrer le nouvel ordre</string>
     <string name="app_library">Bibliothèque d’applications</string>

@@ -80,6 +80,8 @@
     <string name="dock_edit_pick_place">Velg en plass i favorittraden for denne appen, og trykk OK. Trykk Tilbake for å avbryte.</string>
     <string name="reorder">Endre apprekkefølge</string>
     <string name="tile_move">Flytt</string>
+    <string name="tile_uninstall">Avinstaller</string>
+    <string name="tile_details">Detaljer</string>
     <string name="reorder_hint">Trykk OK for å velge en app, bruk pilene for å flytte den, og trykk Tilbake for å plassere den. Trykk Tilbake igjen for å avslutte.</string>
     <string name="reorder_not_saved">Kunne ikke lagre den nye rekkefølgen</string>
     <string name="app_library">Appbibliotek</string>

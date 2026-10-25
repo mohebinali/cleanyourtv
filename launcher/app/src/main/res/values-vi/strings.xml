@@ -116,4 +116,6 @@
     <string name="race_countdown_days">%1$d ngày %2$d giờ</string>
     <string name="last_opened">Mở lần cuối %1$s</string>
     <string name="tile_move">Di chuyển</string>
+    <string name="tile_uninstall">Gỡ cài đặt</string>
+    <string name="tile_details">Chi tiết</string>
 </resources>
