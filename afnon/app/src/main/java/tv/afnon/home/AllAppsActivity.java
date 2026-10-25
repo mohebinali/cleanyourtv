@@ -7,6 +7,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -19,9 +20,8 @@ import java.util.List;
 
 /**
  * All apps (design/AllApps.dc.html): five columns, three rows in view, paging a row at a time. The info bar
- * names the focused app and its place in favourites. Hold OK arranges favourites: a favourite moves earlier or
- * later; any other app can take a favourite's place (Home always has four). The chip shows the next prayer and
- * opens Prayer day; Back returns Home.
+ * names the focused app and its place in favourites. Hold OK opens the app's menu (AppMenu): its place in
+ * favourites, Uninstall and Details. The chip shows the next prayer and opens Prayer day; Back returns Home.
  */
 public class AllAppsActivity extends Screen {
 
@@ -40,21 +40,21 @@ public class AllAppsActivity extends Screen {
     /** The app to focus after a rebuild. */
     private String focusPkg;
 
-    // Hold-OK handling and the arrange menu.
+    // Hold-OK handling; the menu itself is AppMenu.
     private boolean okDown, okLong;
-    private FrameLayout menu;
-    private final List<FocusTile> menuItems = new ArrayList<>();
-    private final List<Runnable> menuActions = new ArrayList<>();
-    /** The OK release that ends the long press which opened the menu must not pick its first item. */
-    private boolean swallowOkUp;
-    /** The tile the menu was opened from, focused again when it closes without a change. */
+    private AppMenu menu;
+    /** The tile the menu was opened from, focused again when it closes. */
     private int menuFrom;
+    /** What the grid was built with, so it rebuilds when apps come or go (an uninstall from the menu, say). */
+    private String builtApps = "";
 
     @Override
     void build() {
         newRoot();
+        menu = null;   // it went with the old root
         apps = Apps.sorted(this, t);
         favs = Apps.slots(this, t);
+        builtApps = Apps.key(this);
         tiles.clear();
 
         backButton = new FocusTile(this, 36);
@@ -253,7 +253,7 @@ public class AllAppsActivity extends Screen {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (menu != null) return menuKey(e);
+        if (menu != null) return menu.key(e);
         int k = e.getKeyCode();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         if (k == KeyEvent.KEYCODE_BACK) {
@@ -293,20 +293,32 @@ public class AllAppsActivity extends Screen {
         return k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER || k == KeyEvent.KEYCODE_NUMPAD_ENTER;
     }
 
-    /** A short press clicks; held past the long-press timeout on an app, it opens the arrange menu instead. */
-    private boolean okKey(KeyEvent e) {
+    /** Held past the long-press timeout on an app, OK opens its menu while still down. */
+    private final Runnable holdOk = () -> {
         int at = current();
+        if (okDown && !okLong && menu == null && at >= 0) {
+            okLong = true;
+            openMenu(apps.get(at));
+        }
+    };
+
+    /**
+     * A short press clicks; held past the long-press timeout on an app, it opens the app's menu instead. Timed from
+     * the press, as Android's own long press is, not from key repeats: where the remote buttons service filters keys,
+     * Android re-injects them and they never repeat (FirmwareKeys).
+     */
+    private boolean okKey(KeyEvent e) {
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             if (e.getRepeatCount() == 0) {
                 okDown = true;
                 okLong = false;
-            } else if (okDown && !okLong && e.isLongPress() && at >= 0) {
-                okLong = true;
-                openMenu(apps.get(at));
+                tick.removeCallbacks(holdOk);
+                tick.postDelayed(holdOk, ViewConfiguration.getLongPressTimeout());
             }
             return true;
         }
-        if (okDown && !okLong) {
+        tick.removeCallbacks(holdOk);
+        if (okDown && !okLong && !e.isCanceled()) {
             View f = getCurrentFocus();
             if (f != null) f.performClick();
         }
@@ -314,113 +326,33 @@ public class AllAppsActivity extends Screen {
         return true;
     }
 
-    // ---------------------------------------------------------------- arrange menu
+    // ---------------------------------------------------------------- app menu
 
     private void openMenu(String pkg) {
         menuFrom = apps.indexOf(pkg);
-        menuItems.clear();
-        menuActions.clear();
-        List<String> labels = new ArrayList<>();
-        int at = favs.indexOf(pkg);
-        if (at >= 0) {
-            if (at > 0) { labels.add(t.moveEarlier()); menuActions.add(() -> swapFav(at, at - 1, pkg)); }
-            if (at < favs.size() - 1) { labels.add(t.moveLater()); menuActions.add(() -> swapFav(at, at + 1, pkg)); }
-        } else {
-            for (int j = 0; j < favs.size(); j++) {
-                final int slot = j;
-                labels.add(t.putInPlaceOf(Apps.name(this, t, favs.get(j))));
-                menuActions.add(() -> replaceFav(slot, pkg));
-            }
-        }
-        labels.add(t.cancel());
-        menuActions.add(null);
-
-        menu = new FrameLayout(this);
-        menu.setBackgroundColor(Tokens.SCRIM_MENU);
-        menu.setClickable(true);
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setClipChildren(false);
-        // The focused item's ring reaches past the card's padding.
-        card.setClipToPadding(false);
-        card.setPadding(Ui.ipx(48), Ui.ipx(40), Ui.ipx(48), Ui.ipx(40));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Tokens.LAPIS_800);
-        bg.setCornerRadius(Ui.px(24));
-        bg.setStroke(Ui.ipx(2), Tokens.GOLD_400_60);
-        card.setBackground(bg);
-        TextView title = text(displayBold, 48, Tokens.GOLD_400);
-        String name = Apps.name(this, t, pkg);
-        title.setText(name);
-        title.setTextDirection(Apps.isLatin(name) ? View.TEXT_DIRECTION_LTR : View.TEXT_DIRECTION_RTL);
-        card.addView(title);
-        lineHeight(title, 1.2f);
-        for (int i = 0; i < labels.size(); i++) {
-            FocusTile item = new FocusTile(this, 36);
-            item.setFocusScale(1.04f);
-            item.setRest(Tokens.LAPIS_700, 0, 0);
-            TextView l = text(ui400, 26, Tokens.PLASTER_100);
-            l.setText(labels.get(i));
-            l.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-            l.setPadding(Ui.ipx(32), 0, Ui.ipx(32), 0);
-            item.addView(l, new FrameLayout.LayoutParams(-1, -1));
-            item.setLook(f -> l.setTextColor(f ? Tokens.LAPIS_900 : Tokens.PLASTER_100));
-            float r = FocusTile.REACH;
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Ui.ipx(72 + 2 * r));
-            lp.topMargin = Ui.ipx(i == 0 ? 24 - r : 12 - 2 * r);
-            card.addView(item, lp);
-            menuItems.add(item);
-        }
-        menu.addView(card, new FrameLayout.LayoutParams(Ui.ipx(820), -2, Gravity.CENTER));
-        root.addView(menu, new FrameLayout.LayoutParams(-1, -1));
-        swallowOkUp = true;
-        menuItems.get(0).requestFocus();
+        menu = new AppMenu(this, pkg, favs, () -> {
+            focusPkg = pkg;
+            build();
+        }, () -> {
+            menu = null;
+            focusTile(menuFrom);
+        });
     }
 
-    private boolean menuKey(KeyEvent e) {
-        int k = e.getKeyCode();
-        boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
-        if (k == KeyEvent.KEYCODE_BACK) {
-            if (!down) closeMenu(-1);
-            return true;
+    /**
+     * Back from Android's uninstall screen with the app gone (or apps came and went meanwhile): rebuild, with focus
+     * on the same app if it is still there, else on the one that took its place.
+     */
+    @Override
+    protected void onResume() {
+        if (!builtApps.equals(Apps.key(this))) {
+            int at = current();
+            String was = at >= 0 ? apps.get(at) : null;
+            build();
+            if (was != null) focusTile(apps.contains(was) ? apps.indexOf(was) : Math.min(at, tiles.size() - 1));
+            else if (at == CHIP && chip != null) chip.requestFocus();
+            else if (at == BACK_BTN && backButton != null) backButton.requestFocus();
         }
-        if (isOk(k)) {
-            if (down) return true;
-            if (swallowOkUp) { swallowOkUp = false; okDown = false; return true; }
-            closeMenu(menuItems.indexOf(getCurrentFocus()));
-            return true;
-        }
-        if (down && (k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN)) {
-            int i = menuItems.indexOf(getCurrentFocus());
-            int to = Math.max(0, Math.min(menuItems.size() - 1, i + (k == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1)));
-            menuItems.get(to).requestFocus();
-        }
-        return true;
-    }
-
-    /** Runs the chosen action (the last item is Cancel), or just returns focus to the tile. */
-    private void closeMenu(int choice) {
-        root.removeView(menu);
-        menu = null;
-        if (choice >= 0 && choice < menuActions.size() - 1) menuActions.get(choice).run();
-        else focusTile(menuFrom);
-    }
-
-    private void swapFav(int a, int b, String pkg) {
-        List<String> f = new ArrayList<>(favs);
-        String x = f.get(a);
-        f.set(a, f.get(b));
-        f.set(b, x);
-        Apps.saveFavourites(this, f);
-        focusPkg = pkg;
-        build();
-    }
-
-    private void replaceFav(int slot, String pkg) {
-        List<String> f = new ArrayList<>(favs);
-        f.set(slot, pkg);
-        Apps.saveFavourites(this, f);
-        focusPkg = pkg;
-        build();
+        super.onResume();
     }
 }

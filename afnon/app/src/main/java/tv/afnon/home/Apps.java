@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
@@ -19,8 +20,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
-/** The apps Afnon shows: which exist, their names and icons, launching, and the saved favourites order. */
+/**
+ * The apps Afnon shows: which exist, their names and icons, launching, which can be uninstalled, and the saved
+ * favourites order.
+ */
 final class Apps {
     private Apps() {}
 
@@ -75,6 +80,19 @@ final class Apps {
         return new ArrayList<>(cached);
     }
 
+    /** Drops the cached list, so the next look sees an app that was just uninstalled. */
+    static synchronized void forget() {
+        cached = null;
+    }
+
+    /**
+     * Changes when favourites are rearranged or apps come or go; Home and All apps rebuild when it does. The packages
+     * themselves, sorted, not their count: one install and one uninstall while away would leave the count the same.
+     */
+    static String key(Context c) {
+        return favourites(c) + "|" + new TreeSet<>(installed(c));
+    }
+
     /** Favourites first, in their saved order; then the rest by name in the screen's language. */
     static List<String> sorted(Context c, Text t) {
         List<String> all = installed(c);
@@ -91,9 +109,11 @@ final class Apps {
         return out;
     }
 
-    /** Home's "More" row: the preferred picks that are installed and not favourites, filled up from the rest. */
-    static List<String> more(Context c, Text t, int count) {
-        List<String> favs = favourites(c);
+    /**
+     * Home's "More" row: the preferred picks that are installed and not among favs, Home's four (so the app standing in
+     * for a favourite that is not installed is not shown twice), filled up from the rest.
+     */
+    static List<String> more(Context c, Text t, List<String> favs, int count) {
         List<String> all = installed(c);
         List<String> out = new ArrayList<>();
         for (String p : MORE_FIRST) if (out.size() < count && all.contains(p) && !favs.contains(p)) out.add(p);
@@ -147,6 +167,19 @@ final class Apps {
             return c.getPackageManager().getApplicationIcon(pkg);
         } catch (PackageManager.NameNotFoundException e) {
             return null;
+        }
+    }
+
+    /**
+     * Whether its menu offers Uninstall: only for apps the user installed. Not the firmware's own (FLAG_SYSTEM, which
+     * their updates keep too), and never either home.
+     */
+    static boolean removable(Context c, String pkg) {
+        if ("tv.afnon.home".equals(pkg) || "com.gathin.tvhome".equals(pkg)) return false;
+        try {
+            return (c.getPackageManager().getApplicationInfo(pkg, 0).flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
         }
     }
 

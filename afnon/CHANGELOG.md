@@ -4,6 +4,33 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.7] - 2026-10-25
+
+### Added
+- Holding OK on an app opens its menu on Home too (the Favourites and More tiles), not only in All apps. After the
+  rows that move it in favourites come Uninstall, only for apps you installed (never the TV's own apps or either
+  home), which opens Android's own uninstall confirmation, and Details, Android's App info page for the app, where
+  its permissions are. An uninstalled app is gone from Home and All apps as soon as you are back, with focus where
+  it was, or on the app that took its place. Uninstall needs the new `REQUEST_DELETE_PACKAGES` permission, granted
+  at install: without it Android 9 and later close the confirmation at once.
+
+### Changed
+- Holding OK in All apps is timed from the press, as Android's own long press on Home's tiles is, rather than
+  waiting for the key to repeat: where the remote buttons service filters keys (every TV but TCL and CVTE boards),
+  Android re-injects them and they never repeat (`FirmwareKeys.java`).
+- The key hint for holding OK reads "App options" instead of "Arrange favourites", and Home's app tiles show it too.
+- Home keeps focus where it was when it comes back to apps that came or went, or to favourites changed in All
+  apps, instead of moving it to the arch.
+
+### Fixed
+- Home showed an app twice, among the favourites and in More, when it stood in for a favourite that is not
+  installed (a default one the TV lacks, or one just uninstalled). More now leaves out all four favourites.
+- Home and All apps missed one app being swapped for another while they were away (one installed, one uninstalled),
+  because they compared only how many apps there were; the uninstalled one stayed as a dead tile. They now compare
+  the apps themselves.
+- The app menu picks a row only on the release of an OK pressed inside it, so a stray release (an OK that woke the
+  screensaver, say) can no longer change a favourite on its own.
+
 ## [0.6] - 2026-10-24
 
 ### Added

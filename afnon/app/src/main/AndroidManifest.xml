@@ -19,6 +19,9 @@
          never requested at runtime. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:ignore="CoarseFineLocation" />
+    <!-- Uninstall in an app's hold-OK menu (AppMenu) opens Android's own confirmation, which Android 9+ shows only
+         to apps that hold this. A normal permission, granted at install; Afnon never removes an app itself. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <!-- Android 11+ package visibility, so the app tiles can resolve the apps they launch. -->
     <queries>

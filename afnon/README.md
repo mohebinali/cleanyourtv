@@ -49,7 +49,7 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
 | ![Friday](docs/screenshots/friday.png) | ![Ramadan](docs/screenshots/ramadan.png) |
 | **Friday.** Jumu'ah replaces Dhuhr, with a Surat al-Kahf reminder. | **Ramadan.** Iftar and suhoor take over the countdown. |
 | ![All apps](docs/screenshots/all-apps.png) | ![Settings, radio section](docs/screenshots/settings-radio.png) |
-| **All apps.** Every launchable app. Hold OK to put one in favourites. | **Settings on the TV.** Prayer times, reminders and adhan, radio, display and language. |
+| **All apps.** Every launchable app. Hold OK on one to move it in favourites, uninstall it (apps you installed) or open its details (Android's App info, with its permissions); Home's Favourites and More tiles have the same menu. | **Settings on the TV.** Prayer times, reminders and adhan, radio, display and language. |
 
 ## Features
 
@@ -106,6 +106,7 @@ nothing from other sites except the station's stream when you press Play, and ke
 | `RECORD_AUDIO` | Required by Android's Visualizer, to read Afnon's **own** player for the level bars. It does not use the microphone. |
 | `WRITE_SECURE_SETTINGS` | Turns the TV's sleep timer off while the radio plays, and puts it back after. On TCL, also writes the remote button mappings (see TCL notes) |
 | `ACCESS_FINE_LOCATION` | Android 9+ hides the Wi-Fi name without it; Home shows the name. Afnon never reads the TV's location |
+| `REQUEST_DELETE_PACKAGES` | Uninstall in an app's hold-OK menu opens Android's own confirmation, which Android 9+ shows only to apps that hold it. Afnon never removes an app itself |
 | Accessibility service | Remote button mapping (see `RemoteKeys.java`) |
 
 ## Install
@@ -161,7 +162,8 @@ in Developer options, revoke the USB debugging authorisations, reboot, and check
 
 | I want to… | Do this |
 |---|---|
-| Change favourites | All apps → hold **OK** on an app → *Put in favourites instead of…* |
+| Change favourites | Hold **OK** on an app in All apps or on a More tile on Home → *Put in favourites instead of…*; on a favourite → *Move earlier* or *Move later in favourites* |
+| Uninstall an app, or see its permissions | Hold **OK** on it in All apps, or on its Favourites or More tile on Home → *Uninstall* (apps you installed), or *Details* (Android's App info page) |
 | Change city, method, adhan voice, radio options | The remote's **Settings** button, or the gear on Home |
 | Point a remote button at another app | Edit the table at the top of `RemoteKeys.java`, then `bash tools/install.sh` |
 | Change colours or the star pattern | `Tokens.java` (the design tokens) and `Ui.starLattice` |
@@ -216,7 +218,8 @@ detects them by their hotkey service and each piece is skipped elsewhere:
 app/src/main/java/tv/afnon/home/
   MainActivity        Home: clock, prayer row, favourites, radio pill and card, focus map
   PrayerDayActivity   Today's prayers, Qibla dial, room direction
-  AllAppsActivity     Every app; hold OK to arrange favourites
+  AllAppsActivity     Every app; hold OK for its menu
+  AppMenu             The hold-OK menu in All apps and on Home: move in favourites, uninstall, details
   SettingsActivity    On-TV settings (prayer, reminders, radio, display, network, device)
   NowActivity         The call to prayer
   AfnonDream          Screensaver
@@ -278,5 +281,5 @@ docs/screenshots/     the images above, all from the real TV
 - Started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv). Built with
   [Claude Code](https://claude.com/claude-code) on the real TV, screenshot by screenshot.
 
-Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Released under the
+Contributions are welcome; see [CONTRIBUTING.md](https://github.com/egyjs/afnon-android-tv-launcher/blob/main/CONTRIBUTING.md). Released under the
 [MIT licence](LICENSE).

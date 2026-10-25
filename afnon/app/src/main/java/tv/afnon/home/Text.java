@@ -168,10 +168,14 @@ final class Text {
     }
     String notFav() { return ar ? "اضغط مطولًا على OK لوضعه في المفضلة" : "Hold OK to put it in favourites"; }
     String hintOpen() { return ar ? "OK  فتح" : "OK  Open"; }
-    String hintHold() { return ar ? "اضغط مطولًا  ترتيب المفضلة" : "Hold OK  Arrange favourites"; }
+    /** Holding OK on an app opens its menu (AppMenu), on Home's app tiles too. */
+    String hintHold() { return ar ? "اضغط مطولًا  خيارات التطبيق" : "Hold OK  App options"; }
     String moveEarlier() { return ar ? "تقديمه في المفضلة" : "Move earlier in favourites"; }
     String moveLater() { return ar ? "تأخيره في المفضلة" : "Move later in favourites"; }
     String putInPlaceOf(String app) { return ar ? "ضعه في المفضلة مكان " + app : "Put in favourites instead of " + app; }
+    String uninstall() { return ar ? "إلغاء التثبيت" : "Uninstall"; }
+    /** Android's App info page, which lists the app's permissions. */
+    String details() { return ar ? "التفاصيل" : "Details"; }
     String cancel() { return ar ? "إلغاء" : "Cancel"; }
     String favourite() { return ar ? "مفضل" : "Favourite"; }
 

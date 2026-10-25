@@ -72,6 +72,8 @@ public class MainActivity extends Screen {
     private boolean archFocused;
     /** What Home was built with, so it rebuilds when All apps changes favourites or apps come and go. */
     private String builtApps = "";
+    /** The four favourites as built, for the tiles' hold-OK menu. */
+    private List<String> favs = new ArrayList<>();
     /** The reminder card (design/Home.dc.html, mode "approach") and the prayer it is for. */
     private LinearLayout card;
     private FocusTile cardOk, cardDay;
@@ -193,7 +195,12 @@ public class MainActivity extends Screen {
 
     @Override
     protected void onResume() {
-        if (!builtApps.equals(appsKey())) build();
+        // Apps came or went (an uninstall from a tile's menu, say): rebuild, with focus kept on the same place.
+        if (!builtApps.equals(Apps.key(this))) {
+            int at = currentNode();
+            build();
+            if (at >= 0 && nodes[at] != null) nodes[at].requestFocus();
+        }
         lastMinute = -1;
         updateWifi();
         super.onResume();
@@ -225,6 +232,7 @@ public class MainActivity extends Screen {
         card = null;   // a reminder card went with the old root
         radioCard = null;
         themeCard = null;
+        menu = null;
         buildArch(488, 26, 12, Tokens.GOLD_200, 8);
 
         nodes[ARCH] = archButton();
@@ -297,7 +305,7 @@ public class MainActivity extends Screen {
         fav.setText(t.fav());
         place(fav, Tokens.COURT_X, LABEL_ABOVE_FAV, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         float fw = (Tokens.COURT_W - 3 * 24) / 4f;
-        List<String> favs = Apps.slots(this, t);
+        favs = Apps.slots(this, t);
         for (int i = 0; i < 4; i++) {
             nodes[F0 + i] = favouriteTile(favs.get(i), F0 + i, Tokens.COURT_X + i * (fw + 24), 520, fw);
         }
@@ -306,7 +314,7 @@ public class MainActivity extends Screen {
         more.setText(t.more());
         place(more, Tokens.COURT_X, LABEL_ABOVE_MORE, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         float mw = (Tokens.COURT_W - 5 * 20) / 6f;
-        List<String> moreApps = Apps.more(this, t, 5);
+        List<String> moreApps = Apps.more(this, t, favs, 5);
         for (int i = 0; i < 5; i++) {
             nodes[M0 + i] = moreTile(i < moreApps.size() ? moreApps.get(i) : null, M0 + i, Tokens.COURT_X + i * (mw + 20), 764, mw);
         }
@@ -322,7 +330,7 @@ public class MainActivity extends Screen {
         }
 
         setContentView(root);
-        builtApps = appsKey();
+        builtApps = Apps.key(this);
         lastMinute = -1;
         render(true);
         nodes[ARCH].requestFocus();
@@ -439,6 +447,7 @@ public class MainActivity extends Screen {
         b.addView(col, new FrameLayout.LayoutParams(-1, -1));
         b.setLook(f -> label.setTextColor(f ? Tokens.LAPIS_900 : Tokens.PLASTER_100));
         b.setOnClickListener(v -> { if (pkg != null) Apps.launch(this, pkg); });
+        b.setOnLongClickListener(v -> { if (pkg != null) openMenu(pkg, node); return true; });
         nodeLabel[node] = name;
         placeTile(b, x, y, w, 150);
         return b;
@@ -456,6 +465,7 @@ public class MainActivity extends Screen {
         b.addView(label, new FrameLayout.LayoutParams(-1, -1));
         b.setLook(f -> label.setTextColor(f ? Tokens.LAPIS_900 : Tokens.PLASTER_100));
         b.setOnClickListener(v -> { if (pkg != null) Apps.launch(this, pkg); });
+        b.setOnLongClickListener(v -> { if (pkg != null) openMenu(pkg, node); return true; });
         nodeLabel[node] = name;
         placeTile(b, x, y, w, 112);
         return b;
@@ -580,9 +590,11 @@ public class MainActivity extends Screen {
             h.add(t.hintOk(nodeLabel[n]));
         } else if (n >= F0 && n < M0) {
             h.add(t.hintOk(t.open(nodeLabel[n])));
+            h.add(t.hintHold());
             h.add(t.hintMore());
-        } else if (n >= M0) {
+        } else if (n >= M0 && n <= ALL) {
             h.add(t.hintOk(n == ALL ? nodeLabel[n] : t.open(nodeLabel[n])));
+            if (n != ALL && !nodeLabel[n].isEmpty()) h.add(t.hintHold());
             h.add(t.hintFavs());
         } else {
             h.add(t.hintOk(nodeLabel[n]));
@@ -853,12 +865,35 @@ public class MainActivity extends Screen {
         if (focusPill) nodes[WIFI].requestFocus();
     }
 
+    // ---------------------------------------------------------------- app menu
+
+    /** Hold OK on a favourite or More tile: All apps' menu (AppMenu), and the node it was opened from. */
+    private AppMenu menu;
+    private int menuFrom;
+
+    /** Focus is trapped in the menu while it is open, as with the cards, and goes back to the tile when it closes. */
+    private void openMenu(String pkg, int node) {
+        if (menu != null || themeCard != null || radioCard != null || card != null) return;
+        menuFrom = node;
+        menu = new AppMenu(this, pkg, favs, () -> {
+            build();
+            int at = favs.indexOf(pkg);
+            if (at >= 0) nodes[F0 + at].requestFocus();
+        }, () -> {
+            menu = null;
+            for (View n : nodes) if (n != null) n.setFocusable(true);
+            nodes[menuFrom].requestFocus();
+        });
+        for (View n : nodes) if (n != null) n.setFocusable(false);
+    }
+
     // ---------------------------------------------------------------- reminder card
 
     /** "Asr in 13 minutes" at the bottom end, over the apps; it takes focus until Got it, Today's prayers or Back. */
     private void showReminder() {
         if (card != null) dismissReminder();
         closeRadioCard(false);
+        if (menu != null) menu.close(-1);
         Date now = new Date();
         day = new PrayerDay(this, now);
         cardFor = day.nextTime;
@@ -958,6 +993,7 @@ public class MainActivity extends Screen {
                 return true;
             }
         }
+        if (menu != null) return menu.key(e);
         if (themeCard != null) {
             if (k == KeyEvent.KEYCODE_BACK) {
                 if (e.getAction() == KeyEvent.ACTION_UP) closeThemeCard(true);
@@ -1047,11 +1083,5 @@ public class MainActivity extends Screen {
         View f = getCurrentFocus();
         for (int i = 0; i < NODES; i++) if (nodes[i] == f) return i;
         return -1;
-    }
-
-    // ---------------------------------------------------------------- apps
-
-    private String appsKey() {
-        return Apps.favourites(this) + "|" + Apps.installed(this).size();
     }
 }
