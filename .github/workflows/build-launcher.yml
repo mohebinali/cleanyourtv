@@ -32,9 +32,10 @@ jobs:
         working-directory: launcher
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Fetch adhan audio (non-fatal)
+      # Fatal on purpose: without the recordings, afnon.apk puts up a silent call to prayer.
+      - name: Fetch adhan audio
         working-directory: afnon
-        run: bash tools/fetch-adhans.sh || echo "adhan fetch skipped"
+        run: bash tools/fetch-adhans.sh
 
       - name: Build the prayer home (afnon)
         working-directory: afnon
@@ -58,6 +59,12 @@ jobs:
           for a in out/*.apk; do
             unzip -l "$a" | grep -q classes.dex || { echo "ERROR: $a has no code"; exit 1; }
           done
+          # afnon.apk must carry every recording on fetch-adhans.sh's list, or a prayer set to a
+          # missing voice comes up silent. Counting from that list means a new voice needs no edit here.
+          # "|| true": grep -c exits 1 on a count of 0, and bash -e would quit before the message.
+          want=$(sed -n '/<<.LIST.$/,/^LIST$/p' afnon/tools/fetch-adhans.sh | grep -c '|' || true)
+          have=$(unzip -l out/afnon.apk | grep -c 'assets/adhan/.*\.mp3$' || true)
+          [ "$want" -gt 0 ] && [ "$have" -eq "$want" ] || { echo "ERROR: afnon.apk has $have of $want adhan recordings"; exit 1; }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
