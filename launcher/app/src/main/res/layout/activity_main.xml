@@ -94,6 +94,18 @@
             android:letterSpacing="0.12" />
     </LinearLayout>
 
+    <!-- The week ahead (WeekView, from Weather), end-aligned with the pills. MainActivity.placeWeek puts it under
+         them, shows it only where the dock leaves room, and fades it while the grid is scrolled up under it. -->
+    <com.gathin.tvhome.WeekView
+        android:id="@+id/week"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="56dp"
+        android:alpha="0"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
     <!-- Cinematic top shelf: darkens the edge behind the shelf and the lower half, so the text and the
          dock stay readable over the artwork. -->
     <View

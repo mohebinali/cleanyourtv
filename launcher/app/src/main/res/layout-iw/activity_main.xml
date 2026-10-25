@@ -94,6 +94,17 @@
             android:letterSpacing="0.12" />
     </LinearLayout>
 
+    <!-- The week ahead (WeekView), mirrored: under the pills on the left. Placed and faded by MainActivity.placeWeek. -->
+    <com.gathin.tvhome.WeekView
+        android:id="@+id/week"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|left"
+        android:layout_marginStart="56dp"
+        android:alpha="0"
+        android:focusable="false"
+        android:importantForAccessibility="no" />
+
     <!-- Cinematic top shelf: darkens the edge behind the shelf and the lower half, so the text and the
          dock stay readable over the artwork. -->
     <View

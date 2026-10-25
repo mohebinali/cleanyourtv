@@ -171,6 +171,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView greeting;
     /** Temperature and humidity under the clock; hidden until the first reading lands. */
     private TextView weatherLine;
+    /** The week ahead under the pills (placeWeek); empty until the first reading with days lands. */
+    private WeekView week;
+    /** The row of pills the week hangs under, and a scratch pair for placeWeek's screen positions. */
+    private View pillRow;
+    private final int[] spot = new int[2];
     private View clockBlock;
     private View btnInputs;
     /** The Theme pill: switches between this home and Afnon's prayer home. */
@@ -442,6 +447,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
         greeting = findViewById(R.id.greeting);
+        week = findViewById(R.id.week);
+        pillRow = findViewById(R.id.topButtons);
         weatherLine = findViewById(R.id.weatherLine);
         updateWeather();
         clockBlock = findViewById(R.id.leftBlock);
@@ -576,16 +583,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             grid.post(this::refitGlass);
         });
 
-        // Keep the glass glued to its tile while the grid scrolls.
+        // Keep the glass glued to its tile while the grid scrolls, and fade the week as rows scroll up under it.
         grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                placeWeek();
                 if (!glassShown) return;
                 glassTargetY -= dy;
                 glassScrollShift -= dy;
                 glass.setTranslationY(glass.getTranslationY() - dy);
             }
         });
+        // The pills, the dock and the week's own size all settle in layout passes; place the week after each.
+        root.getViewTreeObserver().addOnGlobalLayoutListener(this::placeWeek);
 
         // Liquid feel: soft springs on the highlight's position.
         springX = new SpringAnimation(glass, DynamicAnimation.TRANSLATION_X);
@@ -2284,7 +2294,27 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         String line = Weather.line(this);
         weatherLine.setText(line);
         weatherLine.setVisibility(line.isEmpty() ? View.GONE : View.VISIBLE);
+        if (week != null) week.setDays(Weather.week(this));
         Weather.refresh(this, this::updateWeather);
+    }
+
+    /**
+     * The week hangs 20dp under the pills when the dock leaves room for it above its band, and fades out over the
+     * first 48dp the grid scrolls up under it. With no room (a short screen, no dock row) it stays out of sight.
+     */
+    private void placeWeek() {
+        if (week == null || pillRow == null || grid == null) return;
+        root.getLocationInWindow(spot);
+        int rootTop = spot[1];
+        pillRow.getLocationInWindow(spot);
+        float top = spot[1] - rootTop + pillRow.getHeight() + 20 * density;
+        grid.getLocationInWindow(spot);
+        // The dock's band reaches about 8dp above the grid's top padding (DockDecoration); keep 12dp clear of it.
+        float room = spot[1] - rootTop + grid.getPaddingTop() - 20 * density - top;
+        week.setY(top);
+        float scrolled = grid.computeVerticalScrollOffset() / (48 * density);
+        boolean fits = week.getHeight() > 0 && week.getHeight() <= room;
+        week.setAlpha(fits ? Math.max(0f, 1f - scrolled) : 0f);
     }
 
     private void updateGreeting() {

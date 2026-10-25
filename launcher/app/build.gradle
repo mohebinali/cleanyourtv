@@ -11,8 +11,11 @@ android {
         applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
         minSdk 26
         targetSdk 34
-        versionCode 10
-        versionName '2.9'
+        versionCode 11
+        versionName '3.0'
+        // This fork's TVs run in English or Arabic. The other 23 translations stay in the source but not in the APK:
+        // they were 137 KB of its resources, the room the week's weather needs under the 480 KB size gate.
+        resourceConfigurations += ['en', 'ar']
     }
 
     // One fixed key for every build. signingConfigs.debug uses ~/.android/debug.keystore,
