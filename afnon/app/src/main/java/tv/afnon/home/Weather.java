@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Open-Meteo, no key and no account. The call is the only one Afnon makes besides the radio, so it keeps the
  * app's habits: never on the main thread, never blocking a draw, and silent when there is no network — the
- * last good reading stays on screen until a newer one arrives.
+ * last good reading stays on screen until a newer one arrives. A reading is kept with the city it was fetched for
+ * and counts only while that city is still the chosen one.
  */
 final class Weather {
 
@@ -41,6 +42,8 @@ final class Weather {
         SharedPreferences p = prefs(c);
         long at = p.getLong("wx_at", 0L);
         if (at == 0L || System.currentTimeMillis() - at > KEEP_MS) return "";
+        // Another city's weather is wrong, not just old: nothing until the new city's arrives.
+        if (!Prefs.city(c).id.equals(p.getString("wx_city", ""))) return "";
         int now = p.getInt("wx_now", Integer.MIN_VALUE);
         if (now == Integer.MIN_VALUE) return "";
         int hi = p.getInt("wx_hi", Integer.MIN_VALUE);
@@ -60,11 +63,13 @@ final class Weather {
     /**
      * Fetch in the background if the last reading has gone stale, then hand the new line back on the main
      * thread. Safe to call on every tick: it does nothing while a call is already out or the reading is fresh.
+     * A reading for another city is never fresh, so a new city is fetched at once.
      */
     static void refresh(Context c, final Runnable onUpdated) {
         final Context app = c.getApplicationContext();
         SharedPreferences p = prefs(app);
-        if (System.currentTimeMillis() - p.getLong("wx_at", 0L) < FRESH_MS) return;
+        boolean same = Prefs.city(app).id.equals(p.getString("wx_city", ""));
+        if (same && System.currentTimeMillis() - p.getLong("wx_at", 0L) < FRESH_MS) return;
         if (!inFlight.compareAndSet(false, true)) return;
 
         new Thread(() -> {
@@ -84,6 +89,8 @@ final class Weather {
                         .putInt("wx_code", cur.optInt("weather_code", -1))
                         .putInt("wx_hi", (int) Math.round(day.getJSONArray("temperature_2m_max").getDouble(0)))
                         .putInt("wx_lo", (int) Math.round(day.getJSONArray("temperature_2m_min").getDouble(0)))
+                        // The city this call fetched, which may no longer be the chosen one by the time it answers.
+                        .putString("wx_city", city.id)
                         .putLong("wx_at", System.currentTimeMillis())
                         .apply();
                 if (onUpdated != null) main.post(onUpdated);

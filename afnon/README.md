@@ -173,15 +173,18 @@ in Developer options, revoke the USB debugging authorisations, reboot, and check
 
 ### Trying things without waiting for a prayer
 
+These go to `tv.afnon.home/.Test`, which needs `WRITE_SECURE_SETTINGS`, so only the adb shell can start it. Home
+itself ignores them, since any app on the TV can start Home.
+
 ```bash
-adb shell am start -n tv.afnon.home/.MainActivity --es test friday    # or ramadan, now (back to today)
-adb shell am start -n tv.afnon.home/.MainActivity --es test reminder  # Home's reminder card, spoken
-adb shell am start -n tv.afnon.home/.MainActivity --es test call      # the call screen, 8 s later
-adb shell am start -n tv.afnon.home/.MainActivity --es test banner    # the banner and its voice, 8 s later (open another app)
-adb shell am start -n tv.afnon.home/.MainActivity --es test announce  # «حان الآن موعد صلاة …», 8 s later
-adb shell am start -n tv.afnon.home/.MainActivity --es test radio     # radio on / off
-adb shell am start -n tv.afnon.home/.MainActivity --es station nablus # pick a station (ids in Radio.STATIONS)
-bash tools/shot.sh home                                               # screenshot to state/shots/
+adb shell am start -n tv.afnon.home/.Test --es test friday    # or ramadan, now (back to today)
+adb shell am start -n tv.afnon.home/.Test --es test reminder  # Home's reminder card, spoken
+adb shell am start -n tv.afnon.home/.Test --es test call      # the call screen, 8 s later
+adb shell am start -n tv.afnon.home/.Test --es test banner    # the banner and its voice, 8 s later (open another app)
+adb shell am start -n tv.afnon.home/.Test --es test announce  # «حان الآن موعد صلاة …», 8 s later
+adb shell am start -n tv.afnon.home/.Test --es test radio     # radio on / off
+adb shell am start -n tv.afnon.home/.Test --es station nablus # pick a station (ids in Radio.STATIONS)
+bash tools/shot.sh home                                       # screenshot to state/shots/
 ```
 
 ## TCL notes

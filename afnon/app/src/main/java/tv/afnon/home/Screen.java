@@ -102,25 +102,27 @@ abstract class Screen extends Activity {
     /**
      * Language and digits. "locale" is "system" (default: Arabic only when the TV's language is Arabic), "ar" or
      * "en"; "digits" is empty (Eastern in Arabic, Western in English), "eastern" or "western". Set in Afnon
-     * Settings, or for testing: `adb shell am start -n tv.afnon.home/.MainActivity --es locale ar|en|system`.
-     *
-     * @return whether the intent changed a setting
+     * Settings, or for testing: `adb shell am start -n tv.afnon.home/.Test --es locale ar|en|system`.
      */
-    boolean loadSettings(Intent i) {
+    void loadSettings(Intent i) {
         SharedPreferences p = prefs();
-        boolean changed = false;
-        if (i != null && i.hasExtra("locale")) {
+        if (fromShell(i) && i.hasExtra("locale")) {
             p.edit().putString("locale", i.getStringExtra("locale")).apply();
-            changed = true;
         }
-        if (i != null && i.hasExtra("digits")) {
+        if (fromShell(i) && i.hasExtra("digits")) {
             p.edit().putString("digits", i.getStringExtra("digits")).apply();
-            changed = true;
         }
         t = loadText(this);
         rtl = t.ar;
         builtSettings = Prefs.key(this);
-        return changed;
+    }
+
+    /**
+     * Started through the .Test alias, which only a holder of WRITE_SECURE_SETTINGS (the adb shell) can start. Home
+     * itself is exported to every app, so the test extras count only from here.
+     */
+    static boolean fromShell(Intent i) {
+        return i != null && i.getComponent() != null && "tv.afnon.home.Test".equals(i.getComponent().getClassName());
     }
 
     /** The saved language and digits, for screens and for the screensaver, which is not an Activity. */

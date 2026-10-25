@@ -156,7 +156,10 @@ public class NowActivity extends Screen {
             unmuteForAdhan(am);
         }
         player = Adhans.play(this, Prefs.voice(this, prayer == PrayerDay.FAJR));
-        if (player != null) player.setOnCompletionListener(mp -> {
+        // The recording can't be read (missing from the APK, say): give the sound back to the video and put the
+        // volume and mute back now, instead of holding them in silence until the screen closes.
+        if (player == null) { stopAdhan(); return; }
+        player.setOnCompletionListener(mp -> {
             stopAdhan();
             if (Prefs.callCloseMinutes(this) == 0) finish();
         });

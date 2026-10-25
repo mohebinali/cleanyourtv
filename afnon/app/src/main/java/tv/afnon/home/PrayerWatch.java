@@ -239,7 +239,7 @@ final class PrayerWatch {
     /**
      * For checking on the TV without waiting for a prayer: the banner (with the spoken reminder, if on), the call
      * screen, or the spoken «حان الآن موعد صلاة …» for the next prayer, after a delay to switch to another app
-     * first. From Home: `am start -n tv.afnon.home/.MainActivity --es test banner|call|announce`.
+     * first. From Home: `am start -n tv.afnon.home/.Test --es test banner|call|announce`.
      */
     void test(String kind, long delayMs) {
         handler.postDelayed(() -> {

@@ -102,19 +102,34 @@ public class MainActivity extends Screen {
     /** True while this launch is only a stop on the way to the other home. */
     private boolean handingOff;
 
-    /** The normal home's Theme menu sends the new choice here, since Afnon is the one that keeps it. */
+    /**
+     * The normal home's Theme menu sends the new choice here, since Afnon is the one that keeps it. Any app can
+     * start Home, so only the two themes are taken.
+     */
     private void applyThemeExtra(Intent i) {
         String choice = i == null ? null : i.getStringExtra("theme");
-        if (choice != null) Prefs.setTheme(this, choice);
+        if ("prayer".equals(choice) || "normal".equals(choice)) Prefs.setTheme(this, choice);
     }
 
     private boolean wantsNormal() {
         return "normal".equals(Prefs.theme(this)) && normalHomeIntent() != null;
     }
 
+    /**
+     * A Home press goes on to the normal home as a Home press (MAIN + HOME, pinned to its activity), so it goes
+     * back to its first tile as it does for its own Home key. Its leanback launch intent would leave it on the
+     * tile it was left on, so that is only the fallback.
+     */
     private void openNormalHome() {
-        Intent i = normalHomeIntent();
-        if (i != null) startSafely(i);
+        Intent launch = normalHomeIntent();
+        if (launch == null) return;
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            .setComponent(launch.getComponent()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(home);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            startSafely(launch);
+        }
     }
 
     /**
@@ -132,8 +147,13 @@ public class MainActivity extends Screen {
         super.onNewIntent(intent);
         applyThemeExtra(intent);
         if (wantsNormal()) { openNormalHome(); return; }
-        boolean changed = loadSettings(intent);
-        if (changed) build();
+        // Only an adb test's language or digits is applied here. Settings changed while Home was away are left to
+        // Screen.onResume, which rebuilds when they differ from what Home was built with; loading them here would
+        // record them as built and skip that.
+        if (fromShell(intent) && (intent.hasExtra("locale") || intent.hasExtra("digits"))) {
+            loadSettings(intent);
+            build();
+        }
         // Home key from anywhere: back to Home with focus on the arch (FocusMap: Home key). Posted, because the
         // window puts back its previously focused view when it regains focus after onNewIntent.
         root.post(() -> nodes[ARCH].requestFocus());
@@ -145,14 +165,17 @@ public class MainActivity extends Screen {
      * the spoken reminder if it is on; `banner`, `call` and `announce` come from the remote buttons service 8 s
      * later, time enough to open another app.
      * `--es station <id>` (ids in Radio.STATIONS) picks a radio station as Settings does, before any test runs.
+     * Only from adb, through the .Test alias (`am start -n tv.afnon.home/.Test`): Home itself is exported, and
+     * these change settings, play the radio (which turns the sleep timer off) and put up the call screen.
      */
     private void runTest(Intent i) {
-        String station = i == null ? null : i.getStringExtra("station");
+        if (!fromShell(i)) return;
+        String station = i.getStringExtra("station");
         if (station != null) {
             i.removeExtra("station");
             for (int k = 0; k < Radio.STATIONS.length; k++) if (Radio.STATIONS[k].id.equals(station)) Radio.switchTo(this, k);
         }
-        String kind = i == null ? null : i.getStringExtra("test");
+        String kind = i.getStringExtra("test");
         if (kind == null) return;
         i.removeExtra("test");
         if ("reminder".equals(kind)) root.post(() -> {
@@ -333,6 +356,9 @@ public class MainActivity extends Screen {
         builtApps = Apps.key(this);
         lastMinute = -1;
         render(true);
+        // The new Wi-Fi pill is empty, and onResume's updateWifi does not follow every rebuild: Screen.onResume
+        // rebuilds after it (back from Settings with a change), a new favourites order with no resume at all.
+        updateWifi();
         nodes[ARCH].requestFocus();
     }
 
@@ -893,6 +919,7 @@ public class MainActivity extends Screen {
     private void showReminder() {
         if (card != null) dismissReminder();
         closeRadioCard(false);
+        closeThemeCard(false);
         if (menu != null) menu.close(-1);
         Date now = new Date();
         day = new PrayerDay(this, now);

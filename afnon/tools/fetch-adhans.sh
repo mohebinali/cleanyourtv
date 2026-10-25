@@ -10,7 +10,8 @@ mkdir -p "$DEST"
 while IFS='|' read -r id name; do
   [ -f "$DEST/$id.mp3" ] && continue
   echo "  $id"
-  curl -fsSL -o "$DEST/$id.mp3" "$BASE/$(printf '%s' "$name" | sed 's/ /%20/g')"
+  # CI fails the build without every recording, so ride out rate limits, 5xx and dropped connections.
+  curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o "$DEST/$id.mp3" "$BASE/$(printf '%s' "$name" | sed 's/ /%20/g')"
 done <<'LIST'
 alafasy|Athan Mishary Alafasi.mp3
 almalki|Athan Hamdan Almalki.mp3

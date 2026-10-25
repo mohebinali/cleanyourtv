@@ -81,6 +81,16 @@
             </intent-filter>
         </activity>
 
+        <!-- The adb test hooks (test, station, locale, digits) count only when Home is started through this alias,
+             as in `adb shell am start -n tv.afnon.home/.Test` (README). Only a holder of WRITE_SECURE_SETTINGS, the
+             adb shell, can start it, and with no intent-filter it adds nothing to what HOME or the app list
+             resolve to. It must come after MainActivity, its target. -->
+        <activity-alias
+            android:name=".Test"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS" />
+
         <activity
             android:name=".AllAppsActivity"
             android:exported="false"

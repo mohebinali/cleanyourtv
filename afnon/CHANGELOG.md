@@ -4,6 +4,40 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.8] - 2026-10-25
+
+### Fixed
+- Home on Google TV works from every remote even when Google TV's own home is already on screen, as after Back from
+  voice search results or at boot. The TV's own remote, working the Chromecast over HDMI-CEC (a Samsung TV's, say),
+  sends keys the remote buttons service never sees, so in that case only the phone remote in the Google Home app
+  brought the chosen home back. The service now also follows the notice Android sends for every short Home press,
+  from any remote.
+- Two quick Home presses, about half a second apart, no longer leave Google TV's home on screen: the second was
+  taken for part of the first and dropped.
+- Pressing Home again and again no longer leaves Google TV's home on screen with Home ignored for a minute. That
+  pause is for Afnon not staying up (four bounces back to the stock home within seconds), and now only the stock
+  home coming back without a Home press counts toward it.
+- Voice search results stay up, also when you come back to them (Back from a video picked there) more than 15 s
+  after speaking, where the chosen home used to replace them. Home still leaves them at once.
+- With the normal theme, Home takes the normal home back to its first tile, as its own Home key does, instead of
+  leaving focus on the tile you left from: Afnon now hands the press on as a Home press.
+- A reminder that comes while the Theme menu is open now closes the menu. With both open, Back closed the menu and
+  left the reminder up, and Down moved to Normal in the menu, so the next OK switched homes.
+- Home follows a language or digits change made in Settings when you leave Settings with Home rather than Back. It
+  kept the old layout with the new language's text, and Left and Right swapped, until something else changed.
+- After picking another city, the weather line no longer shows the old city's weather for up to 30 minutes: a
+  reading is kept with its city, and the new city's is fetched at once.
+- When an adhan recording can't be played (one missing from the APK, say), the call screen gives the sound back to
+  what was playing and puts the volume and mute back at once, instead of keeping the video paused in silence until
+  it closes (10 minutes by default).
+
+### Security
+- The adb test hooks (`test`, `station`, `locale`, `digits`) work only through `tv.afnon.home/.Test`, which needs
+  `WRITE_SECURE_SETTINGS`, so only the adb shell can start it. Home is open to every app on the TV, and any of them
+  could use the hooks to turn the TV's sleep timer off through the radio, put up the call screen or change the
+  language. The `theme` extra from the normal home's Theme menu still goes to Home, but only `prayer` or `normal`
+  is taken. The README's test commands use `.Test` instead of `.MainActivity`.
+
 ## [0.7] - 2026-10-25
 
 ### Added
