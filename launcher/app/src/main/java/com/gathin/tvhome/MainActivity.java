@@ -283,11 +283,25 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
+    /**
+     * Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown.
+     * The weather line retries then too, and again once the network is validated, as a fetch can fail before that.
+     */
     private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
+        /** Validation as last reported: the weather retries when it turns on, not on every capabilities change. */
+        private boolean validated;
+
         @Override
         public void onAvailable(@NonNull Network network) {
             handler.post(MainActivity.this::updateWifiLabel);
+            handler.post(MainActivity.this::updateWeather);
+        }
+
+        @Override
+        public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities caps) {
+            boolean now = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+            if (now && !validated) handler.post(MainActivity.this::updateWeather);
+            validated = now;
         }
 
         @Override
@@ -853,6 +867,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (openLiveTvAfterBoot()) return;
         updateGreeting();
+        // Here too, not only in minuteTick: most visits to Home end before its first run.
+        updateWeather();
         updateRace();
         // The network and Inputs pills keep their state while Home is in the background, and callbacks update them
         // when the network or the inputs change, so this refresh only catches anything missed. Its binder calls
