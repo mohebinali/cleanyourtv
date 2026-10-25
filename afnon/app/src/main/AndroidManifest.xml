@@ -6,12 +6,11 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Quran Radio: the stream, keeping the CPU and Wi-Fi awake under the screensaver, its level bars
-         (RECORD_AUDIO, granted with pm grant at install) and the TV's sleep timer (WRITE_SECURE_SETTINGS, also
-         pm grant), which is off only while the radio plays. -->
+    <!-- Quran Radio: the stream, keeping the CPU and Wi-Fi awake under the screensaver, and the TV's sleep timer
+         (WRITE_SECURE_SETTINGS, granted with pm grant at install), which is off only while the radio plays. No
+         RECORD_AUDIO: Afnon never asks for the microphone, and the release build fails any APK that does. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />

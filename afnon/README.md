@@ -95,7 +95,8 @@ only to the chosen station's stream, one at a time: `stream.radiojar.com` (Cairo
 weather line asks `api.open-meteo.com` over HTTPS for the current weather at the chosen city's coordinates, at
 most every 30 minutes. Afnon makes no other network requests, and its
 [network security config](app/src/main/res/xml/network_security.xml) allows plain HTTP for the Cairo stream only.
-Your settings stay on the TV; the weather request carries only the city's coordinates.
+Your settings stay on the TV; the weather request carries only the city's coordinates. Afnon never asks for the
+microphone (no `RECORD_AUDIO`), so the radio's level bars breathe rather than follow the voice.
 
 The [web preview](https://egyjs.github.io/afnon-android-tv-launcher/) is a separate static site, not the app. It loads
 nothing from other sites except the station's stream when you press Play, and keeps your settings in your browser.
@@ -103,7 +104,6 @@ nothing from other sites except the station's stream when you press Play, and ke
 | Permission | Why |
 |---|---|
 | `INTERNET`, `WAKE_LOCK` | The radio stream, kept playing with the screen off |
-| `RECORD_AUDIO` | Required by Android's Visualizer, to read Afnon's **own** player for the level bars. It does not use the microphone. |
 | `WRITE_SECURE_SETTINGS` | Turns the TV's sleep timer off while the radio plays, and puts it back after. On TCL, also writes the remote button mappings (see TCL notes) |
 | `ACCESS_FINE_LOCATION` | Android 9+ hides the Wi-Fi name without it; Home shows the name. Afnon never reads the TV's location |
 | `REQUEST_DELETE_PACKAGES` | Uninstall in an app's hold-OK menu opens Android's own confirmation, which Android 9+ shows only to apps that hold it. Afnon never removes an app itself |
@@ -121,7 +121,6 @@ adb connect $TV
 adb -s $TV install -r afnon.apk
 adb -s $TV shell cmd package set-home-activity tv.afnon.home/.MainActivity
 adb -s $TV shell settings put secure screensaver_components tv.afnon.home/.AfnonDream
-adb -s $TV shell pm grant tv.afnon.home android.permission.RECORD_AUDIO
 adb -s $TV shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
 adb -s $TV shell pm grant tv.afnon.home android.permission.ACCESS_FINE_LOCATION
 ```

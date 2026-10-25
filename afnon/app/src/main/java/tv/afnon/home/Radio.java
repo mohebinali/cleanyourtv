@@ -5,7 +5,6 @@ import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.media.audiofx.Visualizer;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,6 +24,9 @@ import java.util.List;
  *
  * <p>Standby: while it plays, the TV's "put to sleep" timer is turned off, so the screensaver can run (and dim
  * the screen) without the TV switching itself off mid-recitation; the timer is put back when the radio stops.
+ *
+ * <p>It never reads the sound it plays: Android's Visualizer would need the microphone permission, which Afnon does
+ * not ask for, so the level bars breathe instead of following the voice.
  */
 final class Radio {
     static final class Station {
@@ -111,16 +113,11 @@ final class Radio {
     private static final List<Listener> listeners = new ArrayList<>();
     private static Context app;
     private static MediaPlayer player;
-    private static Visualizer visualizer;
     private static AudioFocusRequest focus;
     private static WifiManager.WifiLock wifiLock;
     private static int state = OFF, failures;
     /** The listener asked for it; stays true through reconnects and the adhan's pause. */
     private static boolean wanted;
-
-    /** Loudness per band, 0..1, from the stream itself; empty when the visualizer isn't allowed. */
-    static final float[] levels = new float[BANDS];
-    static volatile boolean measured;
 
     private static final Runnable reconnect = Radio::connect;
 
@@ -190,9 +187,6 @@ final class Radio {
             if (p != player) return;
             failures = 0;
             p.start();
-            startVisualizer(p);
-            // It has failed to attach once right after start; one more try a moment later.
-            if (!measured) handler.postDelayed(() -> { if (p == player && !measured) startVisualizer(p); }, 2000);
             set(PLAYING);
         });
         mp.setOnErrorListener((p, what, extra) -> {
@@ -220,7 +214,6 @@ final class Radio {
 
     private static void release() {
         handler.removeCallbacks(reconnect);
-        stopVisualizer();
         if (player != null) {
             MediaPlayer p = player;
             player = null;
@@ -274,7 +267,6 @@ final class Radio {
 
     private static void set(int s) {
         state = s;
-        if (s != PLAYING) java.util.Arrays.fill(levels, 0f);
         for (Listener l : new ArrayList<>(listeners)) l.onRadio(s);
     }
 
@@ -320,78 +312,6 @@ final class Radio {
             Prefs.of(c).edit().remove("sleep_saved").apply();
         } catch (SecurityException ignored) {
             // No grant; nothing was changed either.
-        }
-    }
-
-    // ---------------------------------------------------------------- the bars
-
-    /** The live loudness for the bars. Needs RECORD_AUDIO (granted at install); without it the bars just breathe. */
-    private static void startVisualizer(MediaPlayer p) {
-        stopVisualizer();
-        try {
-            Visualizer v = new Visualizer(p.getAudioSessionId());
-            int[] range = Visualizer.getCaptureSizeRange();
-            v.setCaptureSize(Math.max(range[0], Math.min(256, range[1])));
-            v.setDataCaptureListener(new Visualizer.OnDataCaptureListener() {
-                @Override
-                public void onWaveFormDataCapture(Visualizer vis, byte[] wave, int rate) {
-                }
-
-                @Override
-                public void onFftDataCapture(Visualizer vis, byte[] fft, int rate) {
-                    bands(fft);
-                }
-            }, Math.min(Visualizer.getMaxCaptureRate(), 20_000), false, true);
-            int enabled = v.setEnabled(true);
-            visualizer = v;
-            measured = enabled == Visualizer.SUCCESS;
-            Prefs.of(app).edit().putString("radio_viz", "session " + p.getAudioSessionId() + " enabled " + enabled).apply();
-        } catch (RuntimeException e) {
-            visualizer = null;
-            measured = false;
-            // Kept for diagnosis: why the bars fell back to breathing.
-            Prefs.of(app).edit().putString("radio_viz", String.valueOf(e)).apply();
-        }
-    }
-
-    private static void stopVisualizer() {
-        if (visualizer != null) {
-            try {
-                visualizer.setEnabled(false);
-                visualizer.release();
-            } catch (RuntimeException ignored) {
-                // Already released with the player.
-            }
-            visualizer = null;
-        }
-        measured = false;
-    }
-
-    /** FFT bins (about 170 Hz each at 256) grouped where a voice lives, roughly 170 Hz to 7 kHz, log-spaced. */
-    private static final int[][] BINS = {{1, 2}, {3, 4}, {5, 8}, {9, 16}, {17, 40}};
-
-    private static final float[] peak = new float[BANDS], floor = new float[BANDS];
-
-    private static void bands(byte[] fft) {
-        int n = fft.length / 2;
-        for (int b = 0; b < BANDS; b++) {
-            float sum = 0;
-            int count = 0;
-            for (int k = BINS[b][0]; k <= BINS[b][1] && k < n; k++) {
-                float re = fft[2 * k], im = fft[2 * k + 1];
-                sum += (float) Math.hypot(re, im);
-                count++;
-            }
-            float mag = count == 0 ? 0 : sum / count;
-            float db = (float) (20 * Math.log10(1 + mag));
-            // Each band tracks its own loud and quiet points (fast to widen, slow to narrow), so the bars use their
-            // whole height whatever the station's level or the voice's range.
-            if (peak[b] == 0 && floor[b] == 0) { peak[b] = db + 1; floor[b] = db - 1; }
-            peak[b] = Math.max(db, peak[b] - 0.06f);
-            floor[b] = Math.min(db, floor[b] + 0.03f);
-            float level = Math.max(0f, Math.min(1f, (db - floor[b]) / Math.max(8f, peak[b] - floor[b])));
-            // Rise at once, fall slowly, so the bars move like a meter rather than flicker.
-            levels[b] = Math.max(level, levels[b] * 0.82f);
         }
     }
 }

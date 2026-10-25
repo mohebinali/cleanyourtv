@@ -4,6 +4,13 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.9] - 2026-10-25
+
+### Removed
+- The microphone permission (`RECORD_AUDIO`). Android's Visualizer needed it to read the radio's own stream for the
+  level bars; Afnon now asks for no microphone access at all, and the bars breathe while the radio plays. The
+  release build fails any home APK that asks for the microphone.
+
 ## [0.8] - 2026-10-25
 
 ### Fixed

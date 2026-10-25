@@ -65,6 +65,16 @@ jobs:
           want=$(sed -n '/<<.LIST.$/,/^LIST$/p' afnon/tools/fetch-adhans.sh | grep -c '|' || true)
           have=$(unzip -l out/afnon.apk | grep -c 'assets/adhan/.*\.mp3$' || true)
           [ "$want" -gt 0 ] && [ "$have" -eq "$want" ] || { echo "ERROR: afnon.apk has $have of $want adhan recordings"; exit 1; }
+          # No APK here may ask for the microphone. aapt2 reads the merged manifest, so a permission a library
+          # brings in is caught too; the package: line proves aapt2 actually read the APK.
+          aapt2=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt2
+          for a in out/*.apk; do
+            perms=$("$aapt2" dump permissions "$a")
+            grep -q '^package:' <<<"$perms" || { echo "ERROR: aapt2 could not read $a"; exit 1; }
+            if grep -q 'android.permission.RECORD_AUDIO' <<<"$perms"; then
+              echo "ERROR: $a asks for the microphone (RECORD_AUDIO)"; exit 1
+            fi
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

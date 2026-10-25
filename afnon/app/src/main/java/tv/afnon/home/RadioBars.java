@@ -8,8 +8,8 @@ import android.os.SystemClock;
 import android.view.View;
 
 /**
- * The radio's level bars: rounded bars rising from a common baseline with the stream's loudness while it plays
- * ({@link Radio#levels}), or breathing gently if the levels can't be read. Stopped, they rest as short steps.
+ * The radio's level bars: rounded bars on a common baseline, breathing gently while it plays (the stream's loudness
+ * is never read, see {@link Radio}). Stopped, they rest as short steps.
  * Redraws at most ~25 times a second and only while attached and playing, so it costs the weak GPU little.
  */
 final class RadioBars extends View {
@@ -36,7 +36,7 @@ final class RadioBars extends View {
         invalidate();
     }
 
-    /** Playing: follow the sound. Otherwise rest. */
+    /** Playing: breathe. Otherwise rest. */
     void setLive(boolean on) {
         if (live == on) return;
         live = on;
@@ -56,11 +56,10 @@ final class RadioBars extends View {
         float bar = gap * 2;
         long t = SystemClock.uptimeMillis();
         for (int i = 0; i < count; i++) {
-            // With fewer bars than bands, take the voice's middle bands.
+            // With fewer bars than bands, take the middle ones.
             int band = count >= Radio.BANDS ? i : Math.min(Radio.BANDS - 1, i + 1);
             float target;
             if (!live) target = REST[band];
-            else if (Radio.measured) target = 0.18f + 0.82f * Radio.levels[band];
             else target = 0.45f + 0.35f * (float) Math.sin(t / (260.0 + band * 70) + band * 1.7);
             // Ease toward the target so steps never jump.
             shown[i] += (target - shown[i]) * (live ? 0.5f : 1f);
