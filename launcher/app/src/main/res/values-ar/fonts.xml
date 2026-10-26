@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outfit has no Arabic letters, so Arabic words fell back to the system's Naskh beside Outfit's Latin. Alexandria
+     draws both scripts, as on the prayer home: Light where Outfit is light or lighter, Regular for the rest. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="ReferenceType">
+    <string name="font_body" translatable="false">@font/alexandria_regular</string>
+    <string name="font_regular" translatable="false">@font/alexandria_regular</string>
+    <string name="font_light" translatable="false">@font/alexandria_light</string>
+    <string name="font_extralight" translatable="false">@font/alexandria_light</string>
+    <string name="font_medium" translatable="false">@font/alexandria_regular</string>
+</resources>

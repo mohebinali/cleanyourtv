@@ -26,6 +26,13 @@
     <uses-permission android:name="yandex.tv.permission.ACCESS_TV_SOURCE" />
     <!-- Uninstall (tile menu, App library): from targetSdk 28 Android's confirmation closes at once without it. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- The Language pill switches the whole TV between English and Arabic, as Settings > System > Language does
+         (Language.java). Both are granted over adb: pm grant com.gathin.tvhome android.permission.CHANGE_CONFIGURATION,
+         and appops set com.gathin.tvhome WRITE_SETTINGS allow. Without them the pill changes this home alone. -->
+    <uses-permission android:name="android.permission.CHANGE_CONFIGURATION"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->

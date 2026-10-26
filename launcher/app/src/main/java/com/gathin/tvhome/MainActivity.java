@@ -180,6 +180,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View btnInputs;
     /** The Theme pill: switches between this home and Afnon's prayer home. */
     private View btnTheme;
+    /** The Language pill: the TV in English or Arabic (Language), named in the language it is in now. */
+    private TextView btnLanguage;
     /** Afnon keeps the chosen theme, because it is the launcher the HOME key reaches. Uninstall never offers it. */
     static final String AFNON = "tv.afnon.home";
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
@@ -628,6 +630,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnTheme = findViewById(R.id.btnTheme);
         if (afnonIntent() == null) btnTheme.setVisibility(View.GONE);
         else btnTheme.setOnClickListener(v -> showThemeMenu());
+        btnLanguage = findViewById(R.id.btnLanguage);
+        btnLanguage.setText(Language.ARABIC.equals(Language.current(this))
+                ? R.string.language_arabic : R.string.language_english);
+        btnLanguage.setOnClickListener(v -> showLanguageMenu());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -713,8 +719,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnSettings.setOnKeyListener(pillKeys);
         btnReorder.setOnKeyListener(pillKeys);
         btnLibraryTop.setOnKeyListener(pillKeys);
+        btnLanguage.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnTheme, btnSettings}) {
+            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnLanguage, btnTheme,
+                    btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -2949,23 +2957,46 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int width = Math.max(anchor.getWidth(), (int) (190 * density));
         final PopupWindow popup = glassPopup(panel, width);
 
-        addThemeRow(rows, popup, getString(R.string.theme_prayer), false, () -> {
+        addMenuRow(rows, popup, R.drawable.ic_picture, getString(R.string.theme_prayer), false, () -> {
             Intent i = afnonIntent();
             if (i == null) return;
             i.putExtra("theme", "prayer");
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(i);
         });
-        addThemeRow(rows, popup, getString(R.string.theme_normal), true, () -> { });
+        addMenuRow(rows, popup, R.drawable.ic_picture, getString(R.string.theme_normal), true, () -> { });
 
         popup.showAsDropDown(anchor, 0, (int) (6 * density));
     }
 
-    private void addThemeRow(LinearLayout rows, final PopupWindow popup, String title,
-                             boolean current, final Runnable action) {
+    /**
+     * The Language menu: English first, then Arabic, each named in its own language. Picking the other one switches
+     * the TV (Language.set), and Android recreates Home in it.
+     */
+    private void showLanguageMenu() {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        final PopupWindow popup = glassPopup(panel, Math.max(btnLanguage.getWidth(), (int) (190 * density)));
+        String now = Language.current(this);
+        for (String language : new String[]{Language.ENGLISH, Language.ARABIC}) {
+            boolean current = language.equals(now);
+            String name = getString(Language.ARABIC.equals(language) ? R.string.language_arabic : R.string.language_english);
+            addMenuRow(rows, popup, R.drawable.ic_language, name, current, () -> {
+                if (!current) Language.set(this, language);
+            });
+        }
+        popup.showAsDropDown(btnLanguage, 0, (int) (6 * density));
+    }
+
+    /** A row of the Theme or Language menu; the current choice is marked "now". */
+    private void addMenuRow(LinearLayout rows, final PopupWindow popup, int iconRes, String title,
+                            boolean current, final Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        ((ImageView) row.findViewById(R.id.icon)).setImageResource(R.drawable.ic_picture);
-        ((TextView) row.findViewById(R.id.title)).setText(title);
+        ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
+        TextView name = row.findViewById(R.id.title);
+        name.setText(title);
+        // The row reads in the home's direction even when its name is in the other language's script.
+        name.setTextDirection(View.TEXT_DIRECTION_LOCALE);
         TextView status = row.findViewById(R.id.status);
         View dot = row.findViewById(R.id.dot);
         if (current) {

@@ -1,4 +1,6 @@
 Copyright 2021 The Outfit Project Authors (https://github.com/Outfitio/Outfit-Fonts)
+Copyright 2022 The Alexandria Project Authors (https://github.com/Gue3bara/Alexandria)
+(alexandria_light.ttf and alexandria_regular.ttf, the Arabic face)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

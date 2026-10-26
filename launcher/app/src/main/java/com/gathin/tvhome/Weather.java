@@ -13,10 +13,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -28,9 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class Weather {
 
-    /** Dammam. Change these three to move the reading to another city; CITY is the name the week shows. */
+    /** Dammam. To move the reading to another city, change these two and weather_city in the strings. */
     private static final double LAT = 26.4333, LON = 50.1000;
-    static final String CITY = "Dammam";
 
     private static final long FRESH_MS = 30L * 60L * 1000L;
     private static final long KEEP_MS = 12L * 60L * 60L * 1000L;
@@ -44,20 +45,34 @@ final class Weather {
         return c.getSharedPreferences("weather", Context.MODE_PRIVATE);
     }
 
-    /** "31° · Clear · 45%", or "" until the first reading lands. */
+    /**
+     * "31° · Clear · 45%" in the home's language and digits ("٣١°، صحو، ٤٥٪" in Arabic), or "" until the first
+     * reading lands.
+     */
     static String line(Context c) {
         SharedPreferences p = prefs(c);
         long at = p.getLong("at", 0L);
         if (at == 0L || System.currentTimeMillis() - at > KEEP_MS) return "";
         int t = p.getInt("temp", Integer.MIN_VALUE);
         if (t == Integer.MIN_VALUE) return "";
-        StringBuilder b = new StringBuilder();
-        b.append(t).append('°');
-        String sky = describe(p.getInt("code", -1));
-        if (!sky.isEmpty()) b.append(" · ").append(sky);
+        Locale locale = c.getResources().getConfiguration().getLocales().get(0);
+        String between = c.getString(R.string.weather_separator);
+        StringBuilder b = new StringBuilder(degrees(locale, t));
+        int sky = describe(p.getInt("code", -1));
+        if (sky != 0) b.append(between).append(c.getString(sky));
         int h = p.getInt("humidity", -1);
-        if (h >= 0) b.append(" · ").append(h).append('%');
+        if (h >= 0) b.append(between).append(percent(locale, h));
         return b.toString();
+    }
+
+    /** A temperature in the locale's digits: "31°", or "٣١°" in Arabic. */
+    static String degrees(Locale locale, int celsius) {
+        return NumberFormat.getIntegerInstance(locale).format(celsius) + "°";
+    }
+
+    /** A percentage in the locale's digits and sign: "45%", or "٤٥٪" in Arabic. */
+    static String percent(Locale locale, int value) {
+        return NumberFormat.getPercentInstance(locale).format(value / 100.0);
     }
 
     /** One day ahead: its date, WMO code, high and low in °C, and the chance of rain in percent (-1 when not sent). */
@@ -151,19 +166,19 @@ final class Weather {
         }
     }
 
-    /** WMO codes, grouped for a glance across the room. */
-    private static String describe(int code) {
-        if (code < 0) return "";
-        if (code == 0) return "Clear";
-        if (code <= 2) return "Partly cloudy";
-        if (code == 3) return "Cloudy";
-        if (code == 45 || code == 48) return "Fog";
-        if (code >= 51 && code <= 57) return "Drizzle";
-        if (code >= 61 && code <= 67) return "Rain";
-        if (code >= 71 && code <= 77) return "Snow";
-        if (code >= 80 && code <= 82) return "Showers";
-        if (code >= 85 && code <= 86) return "Snow showers";
-        if (code >= 95) return "Thunderstorm";
-        return "";
+    /** WMO codes, grouped for a glance across the room: the word's string, or 0 for none. */
+    private static int describe(int code) {
+        if (code < 0) return 0;
+        if (code == 0) return R.string.weather_clear;
+        if (code <= 2) return R.string.weather_partly_cloudy;
+        if (code == 3) return R.string.weather_cloudy;
+        if (code == 45 || code == 48) return R.string.weather_fog;
+        if (code >= 51 && code <= 57) return R.string.weather_drizzle;
+        if (code >= 61 && code <= 67) return R.string.weather_rain;
+        if (code >= 71 && code <= 77) return R.string.weather_snow;
+        if (code >= 80 && code <= 82) return R.string.weather_showers;
+        if (code >= 85 && code <= 86) return R.string.weather_snow_showers;
+        if (code >= 95) return R.string.weather_thunderstorm;
+        return 0;
     }
 }

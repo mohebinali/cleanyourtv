@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arabic reads right to left: Home mirrors as for Hebrew (layout-ar), and the app grid starts on the right. -->
+<resources>
+    <bool name="rtl_app_grid">true</bool>
+    <bool name="rtl_menu_bar">true</bool>
+</resources>

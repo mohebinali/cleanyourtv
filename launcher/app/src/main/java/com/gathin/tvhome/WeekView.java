@@ -19,8 +19,9 @@ import java.util.Locale;
 /**
  * The week ahead under the top bar's pills (Weather.week): a column a day with its name, a line symbol for the
  * weather, the high and the low, and the chance of rain on a row of its own when any day has one; the city and the
- * source along the foot. In the pills' glass, so it reads as part of the top bar. One view, redrawn only when the
- * days change; MainActivity places it and fades it out while the grid is scrolled up under it.
+ * source along the foot. In the pills' glass, so it reads as part of the top bar, and in the home's language and
+ * digits: in Arabic today is on the right, as the dock starts there. One view, redrawn only when the days change;
+ * MainActivity places it and fades it out while the grid is scrolled up under it.
  */
 public class WeekView extends View {
     /** A day's column and the glass's margin at the sides, in dp. */
@@ -30,6 +31,8 @@ public class WeekView extends View {
     private static final int SUN = 0xFFFFCB66, CLOUD = 0xE6FFFFFF, RAIN = 0xFF6EC1FF;
 
     private final float dp, sp;
+    /** Right to left (Arabic, Hebrew): the days run from the right, like the dock. */
+    private final boolean mirrored;
     private final Paint glass = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -38,6 +41,11 @@ public class WeekView extends View {
     private final Path cloud = new Path(), part = new Path();
     private final Typeface regular, light, medium;
     private Weather.Day[] days = new Weather.Day[0];
+    /** Each day's lines as drawn, made by setDays in the home's language and digits; a dry day's rain is "". */
+    private String[] names = new String[0], highs = new String[0], lows = new String[0], rains = new String[0];
+    private String city = "";
+    /** Spaced capitals, as on the date line, for scripts that have them; Arabic letters must stay joined. */
+    private boolean caps = true;
     /** Some day has a chance of rain, so the row for it is shown. */
     private boolean rainRow;
 
@@ -45,6 +53,7 @@ public class WeekView extends View {
         super(context, attrs);
         dp = getResources().getDisplayMetrics().density;
         sp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f, getResources().getDisplayMetrics());
+        mirrored = getResources().getBoolean(R.bool.rtl_app_grid);
         regular = UiFont.get(context, R.string.font_regular);
         light = UiFont.get(context, R.string.font_light);
         medium = UiFont.get(context, R.string.font_medium);
@@ -57,11 +66,29 @@ public class WeekView extends View {
 
     /** Shows these days, today first; none leaves the view empty and zero-sized. */
     void setDays(Weather.Day[] week) {
-        boolean rain = false;
-        for (Weather.Day d : week) if (d.rain > 0) rain = true;
-        if (week.length != days.length || rain != rainRow) requestLayout();
+        Locale locale = getResources().getConfiguration().getLocales().get(0);
+        caps = TextUtils.getLayoutDirectionFromLocale(locale) == LAYOUT_DIRECTION_LTR;
+        String[] name = new String[week.length], high = new String[week.length];
+        String[] low = new String[week.length], rain = new String[week.length];
+        boolean wet = false;
+        for (int i = 0; i < week.length; i++) {
+            Weather.Day d = week[i];
+            String day = d.date.getDayOfWeek().getDisplayName(TextStyle.SHORT, locale);
+            name[i] = caps ? day.toUpperCase(locale) : day;
+            high[i] = Weather.degrees(locale, d.high);
+            low[i] = Weather.degrees(locale, d.low);
+            rain[i] = d.rain > 0 ? Weather.percent(locale, d.rain) : "";
+            if (d.rain > 0) wet = true;
+        }
+        String place = getResources().getString(R.string.weather_city);
+        city = caps ? place.toUpperCase(locale) : place;
+        if (week.length != days.length || wet != rainRow) requestLayout();
         days = week;
-        rainRow = rain;
+        names = name;
+        highs = high;
+        lows = low;
+        rains = rain;
+        rainRow = wet;
         invalidate();
     }
 
@@ -93,39 +120,40 @@ public class WeekView extends View {
     @Override
     protected void onDraw(Canvas c) {
         if (days.length == 0) return;
-        float w = getWidth(), radius = 20 * dp;
+        float w = getWidth(), radius = 20 * dp, spacing = caps ? 0.16f : 0f;
         box.set(dp / 2, dp / 2, w - dp / 2, getHeight() - dp / 2);
         c.drawRoundRect(box, radius, radius, glass);
         c.drawRoundRect(box, radius, radius, edge);
 
-        Locale locale = getResources().getConfiguration().getLocales().get(0);
-        // Spaced capitals like the date line, for scripts that have them; Arabic letters must stay joined.
-        boolean caps = TextUtils.getLayoutDirectionFromLocale(locale) == LAYOUT_DIRECTION_LTR;
         text.setTextAlign(Paint.Align.CENTER);
         for (int i = 0; i < days.length; i++) {
-            Weather.Day d = days[i];
-            float x = (SIDE + COLUMN * i + COLUMN / 2) * dp;
-            String name = d.date.getDayOfWeek().getDisplayName(TextStyle.SHORT, locale);
-            label(c, caps ? name.toUpperCase(locale) : name, x, NAME_Y, medium, 11, i == 0 ? 0xFFFFFFFF : 0xA6FFFFFF,
-                    caps ? 0.16f : 0f);
-            symbol(c, d.code, x - SYMBOL * dp / 2, SYMBOL_Y * dp, SYMBOL * dp);
-            label(c, d.high + "°", x, HIGH_Y, regular, 22, 0xFFFFFFFF, 0f);
-            label(c, d.low + "°", x, LOW_Y, light, 16, 0x8CFFFFFF, 0f);
-            if (rainRow && d.rain > 0) label(c, d.rain + "%", x, RAIN_Y, medium, 11, RAIN, 0.04f);
+            float mid = (SIDE + COLUMN * i + COLUMN / 2) * dp;
+            float x = mirrored ? w - mid : mid;
+            // Arabic day names run long ("الثلاثاء"): each keeps 6dp from the next column.
+            label(c, names[i], x, NAME_Y, medium, 11, i == 0 ? 0xFFFFFFFF : 0xA6FFFFFF, spacing, (COLUMN - 6) * dp);
+            symbol(c, days[i].code, x - SYMBOL * dp / 2, SYMBOL_Y * dp, SYMBOL * dp);
+            label(c, highs[i], x, HIGH_Y, regular, 22, 0xFFFFFFFF, 0f, 0);
+            label(c, lows[i], x, LOW_Y, light, 16, 0x8CFFFFFF, 0f, 0);
+            if (rainRow && !rains[i].isEmpty()) label(c, rains[i], x, RAIN_Y, medium, 11, RAIN, 0.04f, 0);
         }
-        text.setTextAlign(Paint.Align.LEFT);
-        label(c, Weather.CITY.toUpperCase(Locale.ROOT), SIDE * dp, footY(), medium, 10, 0x73FFFFFF, 0.16f);
-        text.setTextAlign(Paint.Align.RIGHT);
-        label(c, "OPEN-METEO", w - SIDE * dp, footY(), medium, 10, 0x73FFFFFF, 0.16f);
+        // The city on today's side, the source at the other end.
+        text.setTextAlign(mirrored ? Paint.Align.RIGHT : Paint.Align.LEFT);
+        label(c, city, mirrored ? w - SIDE * dp : SIDE * dp, footY(), medium, 10, 0x73FFFFFF, spacing, 0);
+        text.setTextAlign(mirrored ? Paint.Align.LEFT : Paint.Align.RIGHT);
+        label(c, "OPEN-METEO", mirrored ? SIDE * dp : w - SIDE * dp, footY(), medium, 10, 0x73FFFFFF, 0.16f, 0);
     }
 
-    /** One line of text, its baseline in dp from the top and its size in sp. */
+    /** One line of text, its baseline in dp from the top and its size in sp; shrunk to maxWidth px when set. */
     private void label(Canvas c, String s, float x, float baseline, Typeface face, float size, int color,
-                       float spacing) {
+                       float spacing, float maxWidth) {
         text.setTypeface(face);
         text.setTextSize(size * sp);
         text.setColor(color);
         text.setLetterSpacing(spacing);
+        if (maxWidth > 0) {
+            float wide = text.measureText(s);
+            if (wide > maxWidth) text.setTextSize(size * sp * maxWidth / wide);
+        }
         c.drawText(s, x, baseline * dp, text);
     }
 

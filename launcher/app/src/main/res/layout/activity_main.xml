@@ -364,6 +364,14 @@
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
+                    android:id="@+id/btnLanguage"
+                    style="@style/TopButton"
+                    android:text="@string/language_english"
+                    android:contentDescription="@string/language"
+                    android:drawableStart="@drawable/ic_language"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
                     android:id="@+id/btnTheme"
                     style="@style/TopButton"
                     android:text="@string/theme"
