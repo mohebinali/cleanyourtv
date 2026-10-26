@@ -4,6 +4,19 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.11] - 2026-10-26
+
+### Added
+- A Language pill in the header, before Theme: a globe and the language Home is in, opening a card with English
+  first and العربية second. Picking one makes it the whole TV's first language and the other its second, as
+  Settings → System → Language does, so the normal home and every app follow; Afnon's own language goes back to
+  following the TV. This needs `CHANGE_CONFIGURATION` and the `WRITE_SETTINGS` app-op, granted over adb by
+  `tools/install.sh`; without them the pill switches Afnon alone. On Home, Up from the arch and from the first
+  favourite reaches it.
+
+### Fixed
+- `tools/install.sh` stopped at granting `RECORD_AUDIO`, which Afnon no longer asks for since 0.9.
+
 ## [0.10] - 2026-10-26
 
 ### Added

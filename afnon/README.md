@@ -86,7 +86,8 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   Afnon over the stock home screen whenever it comes up (`HomeTakeover.java`), so the launcher and the
   setup wizard can stay enabled. Casting needs the wizard: the Cast receiver loads its credentials from it.
 - **Arabic and English.** RTL and LTR layouts. Language follows the TV or is set in Afnon. Digits
-  are Arabic-Indic or Latin.
+  are Arabic-Indic or Latin. The **Language** pill in the header switches the whole TV, English first and Arabic
+  second (or the other way round), and both homes follow it.
 - **Light on the TV.** Plain Java and Views, with no AndroidX, Kotlin or Compose. No blur, no
   video, no shadows. It runs smoothly on a 1.8 GB TV.
 
@@ -110,6 +111,7 @@ nothing from other sites except the station's stream when you press Play, and ke
 | `INTERNET`, `WAKE_LOCK` | The radio stream, kept playing with the screen off |
 | `WRITE_SECURE_SETTINGS` | Turns the TV's sleep timer off while the radio plays, and puts it back after. On TCL, also writes the remote button mappings (see TCL notes) |
 | `ACCESS_FINE_LOCATION` | Android 9+ hides the Wi-Fi name without it; Home shows the name. Afnon never reads the TV's location |
+| `CHANGE_CONFIGURATION`, `WRITE_SETTINGS` (app-op) | The Language pill sets the TV's own language, English or Arabic, as Settings → System → Language does. Both are granted over adb; without them the pill switches Afnon alone |
 | `REQUEST_DELETE_PACKAGES` | Uninstall in an app's hold-OK menu opens Android's own confirmation, which Android 9+ shows only to apps that hold it. Afnon never removes an app itself |
 | Accessibility service | Remote button mapping (see `RemoteKeys.java`) |
 
@@ -127,6 +129,8 @@ adb -s $TV shell cmd package set-home-activity tv.afnon.home/.MainActivity
 adb -s $TV shell settings put secure screensaver_components tv.afnon.home/.AfnonDream
 adb -s $TV shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
 adb -s $TV shell pm grant tv.afnon.home android.permission.ACCESS_FINE_LOCATION
+adb -s $TV shell pm grant tv.afnon.home android.permission.CHANGE_CONFIGURATION
+adb -s $TV shell appops set tv.afnon.home WRITE_SETTINGS allow
 ```
 
 Then turn on **Afnon remote buttons** in the TV's Settings → Accessibility. The APK includes the adhan recordings.

@@ -8,7 +8,8 @@ import android.view.View;
 
 /** Stroke icons on a 24px grid in the current colour, so they follow focus (README: Iconography). */
 final class Icon extends View {
-    static final int WIFI = 0, GEAR = 1, COMPASS = 2, BELL = 3, BACK = 4, STAR = 5, MIHRAB = 6, RADIO = 7, PLAY = 8, STOP = 9, MOON = 10;
+    static final int WIFI = 0, GEAR = 1, COMPASS = 2, BELL = 3, BACK = 4, STAR = 5, MIHRAB = 6, RADIO = 7, PLAY = 8, STOP = 9, MOON = 10,
+            GLOBE = 11;
 
     private int kind;
     private final float strokeOn24;
@@ -119,6 +120,12 @@ final class Icon extends View {
             path.op(cut, android.graphics.Path.Op.DIFFERENCE);
             p.setStyle(Paint.Style.FILL);
             c.drawPath(path, p);
+        } else if (kind == GLOBE) {
+            // The Language pill: a globe's rim, its equator and one meridian.
+            c.drawCircle(12 * k, 12 * k, 9 * k, p);
+            c.drawLine(3 * k, 12 * k, 21 * k, 12 * k, p);
+            r.set(8 * k, 3 * k, 16 * k, 21 * k);
+            c.drawOval(r, p);
         } else if (kind == BACK) {
             // M15 5l-7 7 7 7: points to the start side, so it mirrors in Arabic.
             boolean flip = getLayoutDirection() == LAYOUT_DIRECTION_RTL;

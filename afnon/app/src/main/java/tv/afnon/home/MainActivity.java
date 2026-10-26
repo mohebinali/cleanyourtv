@@ -54,7 +54,8 @@ public class MainActivity extends Screen {
     // Section labels sit 10px above the design (478 / 722) so the focus ring and 1.06 scale never touch them.
     private static final int LABEL_ABOVE_FAV = 468, LABEL_ABOVE_MORE = 712;
 
-    private static final int ARCH = 0, WIFI = 1, SETTINGS = 2, F0 = 3, M0 = 7, ALL = 12, RADIO = 13, THEME = 14, NODES = 15;
+    private static final int ARCH = 0, WIFI = 1, SETTINGS = 2, F0 = 3, M0 = 7, ALL = 12, RADIO = 13, THEME = 14, LANGUAGE = 15,
+        NODES = 16;
 
     /** The other home: CleanYourTV's launcher, installed alongside as the "normal" theme. */
     private static final String NORMAL_HOME = "com.gathin.tvhome";
@@ -257,6 +258,7 @@ public class MainActivity extends Screen {
         card = null;   // a reminder card went with the old root
         radioCard = null;
         themeCard = null;
+        languageCard = null;
         menu = null;
         buildArch(488, 26, 12, Tokens.GOLD_200, 8);
 
@@ -300,8 +302,13 @@ public class MainActivity extends Screen {
         LinearLayout pills = new LinearLayout(this);
         pills.setClipChildren(false);
         float reach = FocusTile.REACH;
+        // Language first, then Theme: the two looks of the TV, beside each other.
+        nodes[LANGUAGE] = languagePill();
+        pills.addView(nodes[LANGUAGE], new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach)));
         nodes[THEME] = themePill();
-        pills.addView(nodes[THEME], new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach)));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach));
+        tlp.setMarginStart(Ui.ipx(20 - 2 * reach));
+        pills.addView(nodes[THEME], tlp);
         LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach));
         wlp.setMarginStart(Ui.ipx(20 - 2 * reach));
         pills.addView(nodes[WIFI], wlp);
@@ -709,7 +716,7 @@ public class MainActivity extends Screen {
      * closes it and the radio carries on. Built like the reminder card, in the lapis of the header.
      */
     private void showRadioCard() {
-        if (radioCard != null || card != null) return;
+        if (radioCard != null || themeCard != null || languageCard != null || card != null) return;
         radioCard = new LinearLayout(this);
         radioCard.setOrientation(LinearLayout.VERTICAL);
         radioCard.setPadding(Ui.ipx(36), Ui.ipx(30), Ui.ipx(36), Ui.ipx(30));
@@ -817,7 +824,7 @@ public class MainActivity extends Screen {
     private FocusTile themePrayer, themeNormal;
 
     private void showThemeCard() {
-        if (themeCard != null || radioCard != null || card != null) return;
+        if (themeCard != null || languageCard != null || radioCard != null || card != null) return;
         themeCard = new LinearLayout(this);
         themeCard.setOrientation(LinearLayout.VERTICAL);
         themeCard.setPadding(Ui.ipx(24), Ui.ipx(22), Ui.ipx(24), Ui.ipx(22));
@@ -834,9 +841,9 @@ public class MainActivity extends Screen {
         themeCard.addView(label);
 
         float r = FocusTile.REACH;
-        themePrayer = themeRow(t.themePrayer(), true);
+        themePrayer = choiceRow(Icon.STAR, t.themePrayer(), true);
         themePrayer.setOnClickListener(v -> closeThemeCard(true));   // already the one on screen
-        themeNormal = themeRow(t.themeNormal(), false);
+        themeNormal = choiceRow(Icon.STAR, t.themeNormal(), false);
         themeNormal.setOnClickListener(v -> {
             Intent i = normalHomeIntent();
             if (i == null) { closeThemeCard(true); return; }
@@ -862,15 +869,18 @@ public class MainActivity extends Screen {
         themePrayer.requestFocus();
     }
 
-    private FocusTile themeRow(String title, boolean current) {
+    /** A row of the Theme or Language card: an icon, the choice, and "now" in gold on the current one. */
+    private FocusTile choiceRow(int iconKind, String title, boolean current) {
         FocusTile b = new FocusTile(this, 34);
         b.setRest(Tokens.LAPIS_900, current ? Tokens.GOLD_400_60 : Tokens.LINE_SOFT, 2);
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(Ui.ipx(26), 0, Ui.ipx(26), 0);
-        Icon icon = new Icon(this, Icon.STAR, 2f);
+        Icon icon = new Icon(this, iconKind, 2f);
         TextView v = text(ui400, 26, Tokens.PLASTER_100);
         v.setText(title);
+        // The row reads in the screen's direction even when the choice is in the other language's script.
+        v.setTextDirection(rtl ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
         row.addView(icon, new LinearLayout.LayoutParams(Ui.ipx(26), Ui.ipx(26)));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
         lp.setMarginStart(Ui.ipx(14));
@@ -908,6 +918,115 @@ public class MainActivity extends Screen {
         if (focusPill) nodes[WIFI].requestFocus();
     }
 
+    // ---------------------------------------------------------------- language
+
+    /** The TV's language, named in the language it is in now; opens the Language card. */
+    private View languagePill() {
+        FocusTile b = new FocusTile(this, 36);
+        b.setRest(Tokens.LAPIS_800, Tokens.LINE_SOFT, 2);
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.ipx(28), 0, Ui.ipx(28), 0);
+        Icon icon = new Icon(this, Icon.GLOBE, 2f);
+        TextView label = text(ui400, 24, Tokens.PLASTER_100);
+        label.setText(t.ar ? Text.ARABIC : Text.ENGLISH);
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.ipx(30), Ui.ipx(30)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.setMarginStart(Ui.ipx(14));
+        row.addView(label, lp);
+        b.addView(row, new FrameLayout.LayoutParams(-2, -1));
+        b.setLook(f -> {
+            int c = f ? Tokens.LAPIS_900 : Tokens.PLASTER_100;
+            label.setTextColor(c);
+            icon.setColor(c);
+        });
+        b.setOnClickListener(v -> showLanguageCard());
+        nodeLabel[LANGUAGE] = t.language();
+        return b;
+    }
+
+    /** The Language card, hanging from the header like the Theme card: English first, then Arabic. */
+    private LinearLayout languageCard;
+    private FocusTile languageEnglish, languageArabic;
+
+    private void showLanguageCard() {
+        if (languageCard != null || themeCard != null || radioCard != null || card != null) return;
+        languageCard = new LinearLayout(this);
+        languageCard.setOrientation(LinearLayout.VERTICAL);
+        languageCard.setPadding(Ui.ipx(24), Ui.ipx(22), Ui.ipx(24), Ui.ipx(22));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Tokens.LAPIS_700);
+        bg.setCornerRadius(Ui.px(24));
+        bg.setStroke(Ui.ipx(2), Tokens.GOLD_400_60);
+        languageCard.setBackground(bg);
+        languageCard.setClipChildren(false);
+        languageCard.setClipToPadding(false);
+
+        TextView label = caps(text(ui400, 20, Tokens.MIST_400));
+        label.setText(t.language());
+        languageCard.addView(label);
+
+        float r = FocusTile.REACH;
+        languageEnglish = choiceRow(Icon.GLOBE, Text.ENGLISH, !t.ar);
+        languageEnglish.setOnClickListener(v -> chooseLanguage(false));
+        languageArabic = choiceRow(Icon.GLOBE, Text.ARABIC, t.ar);
+        languageArabic.setOnClickListener(v -> chooseLanguage(true));
+        LinearLayout.LayoutParams a = new LinearLayout.LayoutParams(-1, Ui.ipx(68 + 2 * r));
+        a.topMargin = Ui.ipx(14 - r);
+        a.setMarginStart(-Ui.ipx(r));
+        languageCard.addView(languageEnglish, a);
+        LinearLayout.LayoutParams n = new LinearLayout.LayoutParams(-1, Ui.ipx(68 + 2 * r));
+        n.topMargin = Ui.ipx(10 - 2 * r);
+        n.setMarginStart(-Ui.ipx(r));
+        languageCard.addView(languageArabic, n);
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.ipx(440), -2, Gravity.TOP | Gravity.END);
+        lp.setMarginEnd(Ui.ipx(1920 - (Tokens.COURT_X + Tokens.COURT_W)));
+        lp.topMargin = Ui.ipx(56 + 72 + 24);
+        root.addView(languageCard, lp);
+        for (View v : nodes) if (v != null) v.setFocusable(false);
+        (t.ar ? languageArabic : languageEnglish).requestFocus();
+    }
+
+    private void closeLanguageCard(boolean focusPill) {
+        if (languageCard == null) return;
+        root.removeView(languageCard);
+        languageCard = null;
+        for (View v : nodes) if (v != null) v.setFocusable(true);
+        if (focusPill) nodes[LANGUAGE].requestFocus();
+    }
+
+    /**
+     * English or Arabic for the whole TV (Language.set). Afnon follows the TV's language from then on (its Settings
+     * language back on TV), and rebuilds when the change arrives; if the TV refuses, Afnon alone switches.
+     */
+    private void chooseLanguage(boolean arabic) {
+        closeLanguageCard(true);
+        prefs().edit().putString("locale", "system").apply();
+        refreshLanguage();
+        Language.set(arabic, () -> {
+            prefs().edit().putString("locale", arabic ? "ar" : "en").apply();
+            refreshLanguage();
+        });
+    }
+
+    /** Rebuilds in the language the settings now give, keeping focus on the Language pill, if that changed it. */
+    private void refreshLanguage() {
+        boolean wasAr = t.ar;
+        loadSettings(null);
+        if (t.ar == wasAr) return;
+        build();
+        nodes[LANGUAGE].requestFocus();
+    }
+
+    /** The TV's language changed: Screen rebuilds Home in it; focus stays on the node it was on, not the arch. */
+    @Override
+    public void onConfigurationChanged(Configuration c) {
+        int at = currentNode();
+        super.onConfigurationChanged(c);
+        if (at >= 0 && nodes[at] != null && !nodes[at].hasFocus()) nodes[at].requestFocus();
+    }
+
     // ---------------------------------------------------------------- app menu
 
     /** Hold OK on a favourite or More tile: All apps' menu (AppMenu), and the node it was opened from. */
@@ -916,7 +1035,7 @@ public class MainActivity extends Screen {
 
     /** Focus is trapped in the menu while it is open, as with the cards, and goes back to the tile when it closes. */
     private void openMenu(String pkg, int node) {
-        if (menu != null || themeCard != null || radioCard != null || card != null) return;
+        if (menu != null || themeCard != null || languageCard != null || radioCard != null || card != null) return;
         menuFrom = node;
         menu = new AppMenu(this, pkg, favs, () -> {
             build();
@@ -937,6 +1056,7 @@ public class MainActivity extends Screen {
         if (card != null) dismissReminder();
         closeRadioCard(false);
         closeThemeCard(false);
+        closeLanguageCard(false);
         if (menu != null) menu.close(-1);
         Date now = new Date();
         day = new PrayerDay(this, now);
@@ -1051,6 +1171,19 @@ public class MainActivity extends Screen {
             if (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT) return true;
             return super.dispatchKeyEvent(e);
         }
+        if (languageCard != null) {
+            if (k == KeyEvent.KEYCODE_BACK) {
+                if (e.getAction() == KeyEvent.ACTION_UP) closeLanguageCard(true);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (e.getAction() == KeyEvent.ACTION_DOWN)
+                    (k == KeyEvent.KEYCODE_DPAD_DOWN ? languageArabic : languageEnglish).requestFocus();
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT) return true;
+            return super.dispatchKeyEvent(e);
+        }
         if (radioCard != null) {
             if (k == KeyEvent.KEYCODE_BACK) {
                 if (e.getAction() == KeyEvent.ACTION_UP) closeRadioCard(true);
@@ -1101,9 +1234,11 @@ public class MainActivity extends Screen {
         boolean up = key == KeyEvent.KEYCODE_DPAD_UP, down = key == KeyEvent.KEYCODE_DPAD_DOWN;
         int to = -1;
         switch (from) {
-            case ARCH: to = right ? F0 : up ? THEME : -1; break;
+            // The header runs Language, Theme, Wi-Fi, Settings; each sits over one favourite, in order.
+            case ARCH: to = right ? F0 : up ? LANGUAGE : -1; break;
             case RADIO: to = left ? ARCH : right ? WIFI : down ? F0 + 1 : -1; break;
-            case THEME: to = left ? ARCH : right ? WIFI : down ? F0 + 1 : -1; break;
+            case LANGUAGE: to = left ? ARCH : right ? THEME : down ? F0 : -1; break;
+            case THEME: to = left ? LANGUAGE : right ? WIFI : down ? F0 + 1 : -1; break;
             case WIFI: to = left ? THEME : right ? SETTINGS : down ? F0 + 2 : -1; break;
             case SETTINGS: to = left ? WIFI : down ? F0 + 3 : -1; break;
             default:
@@ -1111,7 +1246,7 @@ public class MainActivity extends Screen {
                     int i = from - F0;
                     if (left) to = i == 0 ? ARCH : from - 1;
                     else if (right) to = i == 3 ? -1 : from + 1;
-                    else if (up) to = i == 3 ? SETTINGS : i == 2 ? WIFI : THEME;
+                    else if (up) to = i == 3 ? SETTINGS : i == 2 ? WIFI : i == 1 ? THEME : LANGUAGE;
                     else to = M0 + new int[] {0, 1, 3, 4}[i];
                 } else {
                     int i = from - M0;

@@ -39,6 +39,8 @@ final class Text {
     String themePrayer() { return ar ? "الصلاة" : "Prayer"; }
     String themeNormal() { return ar ? "عادي" : "Normal"; }
     String themeNow() { return ar ? "الآن" : "now"; }
+    /** Each language by its own name, as language pickers show them (Home's Language pill): never translated. */
+    static final String ENGLISH = "English", ARABIC = "العربية";
     /** The saved city in this language; set by {@link Screen#loadText}. */
     String cityName = "";
     String city() { return cityName; }

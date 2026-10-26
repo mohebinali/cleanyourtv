@@ -21,6 +21,12 @@
     <!-- Uninstall in an app's hold-OK menu (AppMenu) opens Android's own confirmation, which Android 9+ shows only
          to apps that hold this. A normal permission, granted at install; Afnon never removes an app itself. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- The Language pill switches the whole TV between English and Arabic, as Settings > System > Language does
+         (Language.java). Both are granted over adb (tools/install.sh); without them the pill switches Afnon alone. -->
+    <uses-permission android:name="android.permission.CHANGE_CONFIGURATION"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Android 11+ package visibility, so the app tiles can resolve the apps they launch. -->
     <queries>
