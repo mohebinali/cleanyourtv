@@ -1,6 +1,7 @@
 package tv.afnon.home;
 
 import android.accessibilityservice.AccessibilityService;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -73,6 +74,9 @@ final class AirPlayReturn {
 
     private void poll() {
         if (!watching) return;
+        // The service hears no content events, so its copy of the screen never learns that "1 connected" became
+        // "0 connected" (0.17 kept reading the first copy: the full-screen picture): read the screen afresh.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) service.clearCache();
         AccessibilityNodeInfo root = frontApp();
         CharSequence pkg = root == null ? null : root.getPackageName();
         if (pkg == null || !AIRPLAY.contentEquals(pkg)) {
@@ -124,6 +128,8 @@ final class AirPlayReturn {
 
     private void read(AccessibilityNodeInfo node, int depth) {
         if (node == null || depth > 16) return;
+        // Before Android 13 there is no clearCache: each node is fetched afresh instead, and one gone is skipped.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && !node.refresh()) return;
         CharSequence text = node.getText();
         if (text != null && text.length() > 0) {
             anyText = true;

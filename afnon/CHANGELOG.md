@@ -4,6 +4,13 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.19] - 2026-10-30
+
+### Fixed
+- The AirPlay watch read a stale copy of the receiver's screen: the service hears no content events, so its node
+  cache never learned the screen had changed, and after the phone left it still saw the full-screen picture. Each
+  read clears the cache first (AccessibilityService.clearCache, Android 13+; node refresh before).
+
 ## [0.18] - 2026-10-30
 
 ### Fixed
