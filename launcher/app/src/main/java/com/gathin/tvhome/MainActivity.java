@@ -169,20 +169,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean animations;
     private boolean advancedEffects;
     private TextView greeting;
-    /** Temperature and humidity under the clock; hidden until the first reading lands. */
-    private TextView weatherLine;
-    /** The week ahead under the pills (placeWeek); empty until the first reading with days lands. */
+    /** The week ahead between the header and the dock (placeWeek); empty until the first reading with days lands. */
     private WeekView week;
-    /** The row of pills the week hangs under, and a scratch pair for placeWeek's screen positions. */
+    /** The row of pills, which with the clock makes the header the week sits under, and a scratch pair for
+     *  placeWeek's screen positions. */
     private View pillRow;
     private final int[] spot = new int[2];
     private View clockBlock;
     private View btnInputs;
-    /** The Theme pill: switches between this home and Afnon's prayer home. */
-    private View btnTheme;
     /** The Language pill: the TV in English or Arabic (Language), named in the language it is in now. */
     private TextView btnLanguage;
-    /** Afnon keeps the chosen theme, because it is the launcher the HOME key reaches. Uninstall never offers it. */
+    /** Afnon, the prayer app: it brings HOME here and calls the prayers. Uninstall never offers it. */
     static final String AFNON = "tv.afnon.home";
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
@@ -192,6 +189,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The pills have been filled in once; later resumes refresh them after the first frame. */
     private boolean pillsShown;
     private TextView shamsiDate;
+    /** The Hijri date under the Gregorian one (Hijri), set with the greeting. */
+    private TextView hijriDate;
     private TextView stats;
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
@@ -451,7 +450,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         greeting = findViewById(R.id.greeting);
         week = findViewById(R.id.week);
         pillRow = findViewById(R.id.topButtons);
-        weatherLine = findViewById(R.id.weatherLine);
         updateWeather();
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
@@ -468,6 +466,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
+        hijriDate = findViewById(R.id.hijriDate);
         stats = findViewById(R.id.stats);
         raceCalendar = cfg.raceCalendar;
         racePanel = findViewById(R.id.racePanel);
@@ -627,9 +626,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
-        btnTheme = findViewById(R.id.btnTheme);
-        if (afnonIntent() == null) btnTheme.setVisibility(View.GONE);
-        else btnTheme.setOnClickListener(v -> showThemeMenu());
         btnLanguage = findViewById(R.id.btnLanguage);
         btnLanguage.setText(Language.ARABIC.equals(Language.current(this))
                 ? R.string.language_arabic : R.string.language_english);
@@ -642,7 +638,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         launcherSettingsButton = cfg.launcherSettingsButton;
         if (launcherSettingsButton) {
             ((TextView) btnSettings).setText(R.string.launcher_settings);
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_home_settings_pill, 0, 0, 0);
+            setPillIcon((TextView) btnSettings, getDrawable(R.drawable.ic_home_settings_pill));
         }
         btnSettings.setOnClickListener(v -> {
             if (launcherSettingsButton) startActivityForResult(
@@ -675,7 +671,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             btnInputs.setVisibility(View.GONE);
             btnWifi.setVisibility(View.GONE);
             ((TextView) btnSettings).setText(R.string.settings);
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
+            setPillIcon((TextView) btnSettings, getDrawable(R.drawable.ic_settings));
             if (!iconOnlyButtons) makeIconOnly((TextView) btnSettings);
             btnSettings.setOnClickListener(v -> showTopMenu());
             // The lone gear sits at the header's middle, not on its bottom line like the row of pills.
@@ -721,8 +717,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnLibraryTop.setOnKeyListener(pillKeys);
         btnLanguage.setOnKeyListener(pillKeys);
         if (advancedEffects) {
-            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnLanguage, btnTheme,
-                    btnSettings}) {
+            for (View button : new View[]{btnInputs, btnWifi, btnReorder, btnLibraryTop, btnLanguage, btnSettings}) {
                 button.setOnFocusChangeListener((view, focused) -> view.animate()
                         .scaleX(focused ? 1.04f : 1f).scaleY(focused ? 1.04f : 1f)
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
@@ -2295,33 +2290,38 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /**
      * Draws whatever reading we have, then asks for a fresh one if it has gone stale. Nothing blocks:
-     * the fetch is on its own thread and posts back here, and with no network the old line simply stays.
+     * the fetch is on its own thread and posts back here, and with no network the old week simply stays.
      */
     private void updateWeather() {
-        if (weatherLine == null) return;
-        String line = Weather.line(this);
-        weatherLine.setText(line);
-        weatherLine.setVisibility(line.isEmpty() ? View.GONE : View.VISIBLE);
-        if (week != null) week.setDays(Weather.week(this));
+        if (week == null) return;
+        week.setDays(Weather.week(this));
         Weather.refresh(this, this::updateWeather);
     }
 
     /**
-     * The week hangs 20dp under the pills when the dock leaves room for it above its band, and fades out over the
-     * first 48dp the grid scrolls up under it. With no room (a short screen, no dock row) it stays out of sight.
+     * The week sits in the middle of the room between the header (the clock and the pills) and what is over the
+     * dock: the focused app's name (showHero), or with that off the dock's band. Centred across the screen by its
+     * layout, it fades out over the first 48dp the grid scrolls up under it. With no room (a short screen, no dock
+     * row) it stays out of sight.
      */
     private void placeWeek() {
-        if (week == null || pillRow == null || grid == null) return;
+        if (week == null || pillRow == null || grid == null || clockBlock == null) return;
         root.getLocationInWindow(spot);
         int rootTop = spot[1];
         pillRow.getLocationInWindow(spot);
-        float top = spot[1] - rootTop + pillRow.getHeight() + 20 * density;
+        float header = spot[1] - rootTop + pillRow.getHeight();
+        clockBlock.getLocationInWindow(spot);
+        header = Math.max(header, spot[1] - rootTop + clockBlock.getHeight());
         grid.getLocationInWindow(spot);
+        float dock = spot[1] - rootTop + grid.getPaddingTop();
         // The dock's band reaches about 8dp above the grid's top padding (DockDecoration); keep 12dp clear of it.
-        float room = spot[1] - rootTop + grid.getPaddingTop() - 20 * density - top;
-        week.setY(top);
+        float bottom = dock - 20 * density;
+        // The app's name stands 40dp over the dock's tiles (showHero), its letters starting a little below its top.
+        if (hero.getVisibility() != View.GONE) bottom = Math.min(bottom, dock - 40 * density - hero.getHeight());
+        float room = bottom - header, gap = 6 * density;
+        boolean fits = week.getHeight() > 0 && week.getHeight() + 2 * gap <= room;
+        week.setY(header + Math.max(gap, (room - week.getHeight()) / 2));
         float scrolled = grid.computeVerticalScrollOffset() / (48 * density);
-        boolean fits = week.getHeight() > 0 && week.getHeight() <= room;
         week.setAlpha(fits ? Math.max(0f, 1f - scrolled) : 0f);
     }
 
@@ -2363,6 +2363,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             greeting.setTextColor(greetingColor);
         }
         if (shamsi) shamsiDate.setText(Shamsi.today(getResources()));
+        if (hijriDate != null) hijriDate.setText(Hijri.today(getResources()));
     }
 
     // ---- race-weekend panel (a theme's race_calendar) -----------------------------------------------
@@ -2494,8 +2495,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // onResume, runs before that) getTotalPaddingStart/End leave the compound drawables out, which
             // left the name about 31dp too much room and the badge cut off.
             TextPaint paint = btnWifi.getPaint();
-            Drawable[] compound = btnWifi.getCompoundDrawablesRelative();
-            int iconRoom = compound[0] != null ? compound[0].getIntrinsicWidth() + btnWifi.getCompoundDrawablePadding() : 0;
+            Drawable glyph = btnWifi.getCompoundDrawablesRelative()[pillIconEnd() ? 2 : 0];
+            int iconRoom = glyph != null ? glyph.getIntrinsicWidth() + btnWifi.getCompoundDrawablePadding() : 0;
             float room = btnWifi.getMaxWidth() - btnWifi.getPaddingStart() - btnWifi.getPaddingEnd() - iconRoom
                     - span.getSize(paint, badge, 0, badge.length(), null) - paint.measureText(" ") - 2 * density;
             String name = TextUtils.ellipsize(text, paint, Math.max(0, room), TextUtils.TruncateAt.END).toString();
@@ -2523,7 +2524,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             if (icon != wifiIcon) {
                 wifiIcon = icon;
-                btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+                setPillIcon(btnWifi, getDrawable(icon));
             }
             ColorStateList tint = online ? wifiOnlineTint : wifiPlainTint;
             if (wifiOnlineTint != null && btnWifi.getCompoundDrawableTintList() != tint) {
@@ -2559,6 +2560,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         pill.getLayoutParams().width = Math.round(42 * density);
     }
 
+    /** The right-to-left top bar (Arabic, Hebrew) puts a pill's icon after its label, on the right (TopButtonMirrored). */
+    private boolean pillIconEnd() {
+        return getResources().getBoolean(R.bool.rtl_menu_bar);
+    }
+
+    /** Sets a top pill's icon on its side: the left, or the right in the right-to-left top bar. */
+    private void setPillIcon(TextView pill, Drawable icon) {
+        if (pillIconEnd()) pill.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, icon, null);
+        else pill.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
+    }
+
     // ---- festive skin ------------------------------------------------------------------------------
 
     /**
@@ -2579,10 +2591,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         addFocusAction(settings, marigold::turn);
     }
 
-    private static void setFestiveIcon(TextView pill, Drawable icon) {
+    private void setFestiveIcon(TextView pill, Drawable icon) {
         // The pills tint their icons to follow focus; the festive ones keep their own colours.
         pill.setCompoundDrawableTintList(null);
-        pill.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
+        setPillIcon(pill, icon);
     }
 
     /** Runs {@code action} when the view gains focus, keeping any focus listener it already had. */
@@ -2939,37 +2951,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * The Theme menu: this home, or Afnon's prayer home. Android gives an app no way to set the
-     * system's default launcher, so the choice is stored by Afnon, which is the one HOME reaches:
-     * picking Prayer hands the choice to it, and it renders the arch instead of coming back here.
-     */
-    /** Afnon declares LEANBACK_LAUNCHER, not LAUNCHER, so getLaunchIntentForPackage returns null for it. */
-    private Intent afnonIntent() {
-        PackageManager pm = getPackageManager();
-        Intent i = pm.getLeanbackLaunchIntentForPackage(AFNON);
-        return i != null ? i : pm.getLaunchIntentForPackage(AFNON);
-    }
-
-    private void showThemeMenu() {
-        View anchor = btnTheme;
-        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        LinearLayout rows = panel.findViewById(R.id.rows);
-        int width = Math.max(anchor.getWidth(), (int) (190 * density));
-        final PopupWindow popup = glassPopup(panel, width);
-
-        addMenuRow(rows, popup, R.drawable.ic_picture, getString(R.string.theme_prayer), false, () -> {
-            Intent i = afnonIntent();
-            if (i == null) return;
-            i.putExtra("theme", "prayer");
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(i);
-        });
-        addMenuRow(rows, popup, R.drawable.ic_picture, getString(R.string.theme_normal), true, () -> { });
-
-        popup.showAsDropDown(anchor, 0, (int) (6 * density));
-    }
-
-    /**
      * The Language menu: English first, then Arabic, each named in its own language. Picking the other one switches
      * the TV (Language.set), and Android recreates Home in it.
      */
@@ -2988,15 +2969,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         popup.showAsDropDown(btnLanguage, 0, (int) (6 * density));
     }
 
-    /** A row of the Theme or Language menu; the current choice is marked "now". */
+    /**
+     * A row of the Language menu; the current choice is marked "now". The row's layout keeps the name beside the
+     * icon even when it is in the other language's script (item_input).
+     */
     private void addMenuRow(LinearLayout rows, final PopupWindow popup, int iconRes, String title,
                             boolean current, final Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
         ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
         TextView name = row.findViewById(R.id.title);
         name.setText(title);
-        // The row reads in the home's direction even when its name is in the other language's script.
-        name.setTextDirection(View.TEXT_DIRECTION_LOCALE);
         TextView status = row.findViewById(R.id.status);
         View dot = row.findViewById(R.id.dot);
         if (current) {

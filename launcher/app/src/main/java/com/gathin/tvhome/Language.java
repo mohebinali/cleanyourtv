@@ -7,6 +7,7 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.os.LocaleList;
 
+import java.util.IllformedLocaleException;
 import java.util.Locale;
 
 /**
@@ -14,8 +15,11 @@ import java.util.Locale;
  *
  * With CHANGE_CONFIGURATION and the WRITE_SETTINGS app-op, both granted over adb, this sets the whole TV's languages
  * as Settings > System > Language does, the chosen one first and the other second: every app follows, the prayer
- * home included, and Android recreates this screen in the new language (layout-ar mirrors it for Arabic). Without
+ * app included, and Android recreates this screen in the new language (layout-ar mirrors it for Arabic). Without
  * them it changes this home's own language instead (Android 13 and later), so the pill still works here.
+ *
+ * Arabic goes in with Western digits (the Unicode "nu-latn" extension), so the clock, dates and every other number
+ * read 0-9 as in English instead of turning into Eastern Arabic digits (٠-٩), on Home and across the TV.
  */
 final class Language {
     static final String ENGLISH = "en", ARABIC = "ar";
@@ -58,11 +62,21 @@ final class Language {
         }, "tvhome-language").start();
     }
 
-    /** The TV's own form of a language when it lists one (en-GB stays en-GB), else US English or plain Arabic. */
+    /**
+     * The TV's own form of a language when it lists one (en-GB stays en-GB), else US English or plain Arabic; Arabic
+     * with Western digits.
+     */
     private static Locale variant(LocaleList list, String language) {
-        for (int i = 0; i < list.size(); i++) {
-            if (language.equals(list.get(i).getLanguage())) return list.get(i);
+        Locale found = null;
+        for (int i = 0; i < list.size() && found == null; i++) {
+            if (language.equals(list.get(i).getLanguage())) found = list.get(i);
         }
-        return ENGLISH.equals(language) ? Locale.US : Locale.forLanguageTag(ARABIC);
+        if (found == null) found = ENGLISH.equals(language) ? Locale.US : Locale.forLanguageTag(ARABIC);
+        if (!ARABIC.equals(language)) return found;
+        try {
+            return new Locale.Builder().setLocale(found).setUnicodeLocaleKeyword("nu", "latn").build();
+        } catch (IllformedLocaleException e) {
+            return Locale.forLanguageTag("ar-u-nu-latn");
+        }
     }
 }

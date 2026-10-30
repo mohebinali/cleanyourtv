@@ -11,8 +11,8 @@ android {
         applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
         minSdk 26
         targetSdk 34
-        versionCode 12
-        versionName '3.1'
+        versionCode 13
+        versionName '3.2'
         // This fork's TVs run in English or Arabic. The other 23 translations stay in the source but not in the APK:
         // they were 137 KB of its resources, room for the week's weather and the Arabic font under the 480 KB gate.
         resourceConfigurations += ['en', 'ar']

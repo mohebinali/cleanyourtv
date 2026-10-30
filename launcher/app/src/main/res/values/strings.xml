@@ -147,27 +147,28 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
-    <string name="theme">Theme</string>
-    <string name="theme_prayer">Prayer</string>
-    <string name="theme_normal">Normal</string>
     <string name="theme_current">now</string>
     <!-- The Language pill (Language.java) switches the TV between English, the first choice, and Arabic. The pill and
          its menu name each language in that language, so those two names are not translated. -->
     <string name="language">Language</string>
     <string name="language_english" translatable="false">English</string>
     <string name="language_arabic" translatable="false">العربية</string>
-    <!-- The weather under the clock and the week under the pills (Weather, WeekView): the city the coordinates in
-         Weather.java point at, what goes between the parts of the line, and the sky in a word or two. -->
+    <!-- The week's weather (Weather, WeekView): the city the coordinates in Weather.java point at. -->
     <string name="weather_city">Dammam</string>
-    <string name="weather_separator">" · "</string>
-    <string name="weather_clear">Clear</string>
-    <string name="weather_partly_cloudy">Partly cloudy</string>
-    <string name="weather_cloudy">Cloudy</string>
-    <string name="weather_fog">Fog</string>
-    <string name="weather_drizzle">Drizzle</string>
-    <string name="weather_rain">Rain</string>
-    <string name="weather_snow">Snow</string>
-    <string name="weather_showers">Showers</string>
-    <string name="weather_snow_showers">Snow showers</string>
-    <string name="weather_thunderstorm">Thunderstorm</string>
+    <!-- The Hijri date under the Gregorian one (Hijri.java): day, month and year in the Umm al-Qura calendar. -->
+    <string name="hijri_date">%1$s %2$s %3$s AH</string>
+    <string-array name="hijri_months">
+        <item>Muharram</item>
+        <item>Safar</item>
+        <item>Rabi\' al-Awwal</item>
+        <item>Rabi\' al-Thani</item>
+        <item>Jumada al-Ula</item>
+        <item>Jumada al-Akhirah</item>
+        <item>Rajab</item>
+        <item>Sha\'ban</item>
+        <item>Ramadan</item>
+        <item>Shawwal</item>
+        <item>Dhu al-Qadah</item>
+        <item>Dhu al-Hijjah</item>
+    </string-array>
 </resources>

@@ -49,6 +49,22 @@ class ArabicResourcesTest(unittest.TestCase):
                 self.assertTrue(f.text.startswith("@font/"), f.text)
                 self.assertTrue((RES / "font" / (f.text[len("@font/"):] + ".ttf")).is_file(), f.text)
 
+    def test_arabic_pills_have_their_icon_on_the_right(self):
+        # The app leaves RTL support off, so drawableStart is the left even in Arabic: the mirrored pills say End.
+        pills = {v.attrib[ANDROID + "id"]: v.attrib for v in ET.parse(RES / "layout-ar" / "activity_main.xml").iter()
+                 if ANDROID + "id" in v.attrib}
+        for pill in ("@+id/btnSettings", "@+id/btnLanguage", "@+id/btnWifi", "@+id/btnInputs"):
+            with self.subTest(pill=pill):
+                self.assertEqual(pills[pill].get("style"), "@style/TopButtonMirrored")
+                self.assertIn(ANDROID + "drawableEnd", pills[pill])
+                self.assertNotIn(ANDROID + "drawableStart", pills[pill])
+
+    def test_hijri_months_are_all_there(self):
+        for folder in ("values", "values-ar"):
+            with self.subTest(folder=folder):
+                months = [a for a in ET.parse(RES / folder / "strings.xml").getroot() if a.get("name") == "hijri_months"]
+                self.assertEqual([len(list(m)) for m in months], [12])
+
 
 if __name__ == "__main__":
     unittest.main()

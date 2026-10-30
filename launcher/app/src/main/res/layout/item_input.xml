@@ -18,6 +18,8 @@
         android:duplicateParentState="true"
         android:contentDescription="@null" />
 
+    <!-- On the left, beside the icon, even for a name in a right-to-left script (the Language menu's العربية), which
+         would otherwise sit at the row's far end: the app leaves RTL support off, so textDirection can't do it. -->
     <TextView
         android:id="@+id/title"
         android:layout_width="0dp"
@@ -29,6 +31,7 @@
         android:duplicateParentState="true"
         android:textSize="15sp"
         android:fontFamily="@string/font_medium"
+        android:gravity="left"
         android:singleLine="true" />
 
     <View

@@ -144,21 +144,22 @@
     <string name="race_countdown_hours">%1$d س %2$d د</string>
     <string name="race_countdown_days">%1$d ي %2$d س</string>
     <string name="last_opened">آخر فتح %1$s</string>
-    <string name="theme">المظهر</string>
-    <string name="theme_prayer">الصلاة</string>
-    <string name="theme_normal">عادي</string>
     <string name="theme_current">الآن</string>
     <string name="language">اللغة</string>
     <string name="weather_city">الدمام</string>
-    <string name="weather_separator">"، "</string>
-    <string name="weather_clear">صحو</string>
-    <string name="weather_partly_cloudy">غائم جزئيًا</string>
-    <string name="weather_cloudy">غائم</string>
-    <string name="weather_fog">ضباب</string>
-    <string name="weather_drizzle">رذاذ</string>
-    <string name="weather_rain">مطر</string>
-    <string name="weather_snow">ثلج</string>
-    <string name="weather_showers">زخات مطر</string>
-    <string name="weather_snow_showers">زخات ثلج</string>
-    <string name="weather_thunderstorm">عاصفة رعدية</string>
+    <string name="hijri_date">%1$s %2$s %3$s هـ</string>
+    <string-array name="hijri_months">
+        <item>محرم</item>
+        <item>صفر</item>
+        <item>ربيع الأول</item>
+        <item>ربيع الآخر</item>
+        <item>جمادى الأولى</item>
+        <item>جمادى الآخرة</item>
+        <item>رجب</item>
+        <item>شعبان</item>
+        <item>رمضان</item>
+        <item>شوال</item>
+        <item>ذو القعدة</item>
+        <item>ذو الحجة</item>
+    </string-array>
 </resources>

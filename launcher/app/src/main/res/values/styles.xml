@@ -35,6 +35,21 @@
         <item name="android:drawablePadding">0dp</item>
     </style>
 
+    <!-- The right-to-left top bar's pills (layout-ar, layout-iw): the icon comes after the label, on the right, so the
+         wider padding moves to the label's side, and the gap between pills to their right, which keeps the row's left
+         edge in line with the content under it as the right edge is in the default layout. MainActivity.setPillIcon
+         puts icons set in code on the same side. -->
+    <style name="TopButtonMirrored" parent="TopButtonBase">
+        <item name="android:layout_marginStart">0dp</item>
+        <item name="android:layout_marginEnd">10dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+    <style name="TopButtonIconMirrored" parent="TopButtonIcon">
+        <item name="android:layout_marginStart">0dp</item>
+        <item name="android:layout_marginEnd">10dp</item>
+    </style>
+
     <style name="SettingsRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">52dp</item>
