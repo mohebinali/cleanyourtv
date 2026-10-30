@@ -161,24 +161,56 @@ public class WeekView extends View {
     }
 
     /**
-     * A day's humidity: a drop and the percentage, centred together on the column, the drop first (on the right
-     * in Arabic).
+     * A day's humidity: the humidity sign and the percentage, centred together on the column, the sign first (on the
+     * right in Arabic), both in the label's colour as Apple's weather draws them.
      */
     private void humidity(Canvas c, String s, float x) {
+        int color = 0xA6FFFFFF;
         text.setTypeface(medium);
         text.setTextSize(11 * sp);
-        text.setColor(0xA6FFFFFF);
+        text.setColor(color);
         text.setLetterSpacing(0.04f);
-        float drop = 7f * dp, gap = 3f * dp, wide = text.measureText(s);
-        float start = x - (drop + gap + wide) / 2;
-        drop(c, mirrored ? start + wide + gap + drop / 2 : start + drop / 2, HUMID_Y * dp, 9f * dp);
+        float u = 0.7f * dp, sign = HUMID_W * u, gap = 3f * dp, wide = text.measureText(s);
+        float start = x - (sign + gap + wide) / 2;
+        // Its foot a little under the baseline, as the drop's round body sits lower than the digits.
+        humiditySign(c, mirrored ? start + wide + gap : start, HUMID_Y * dp + 0.5f * dp, u, color);
         text.setTextAlign(Paint.Align.LEFT);
-        c.drawText(s, mirrored ? start : start + drop + gap, HUMID_Y * dp, text);
+        c.drawText(s, mirrored ? start : start + sign + gap, HUMID_Y * dp, text);
         text.setTextAlign(Paint.Align.CENTER);
     }
 
+    /** The humidity sign's width and height in its grid's units. */
+    private static final float HUMID_W = 15f, HUMID_H = 13f;
+
+    /**
+     * The humidity sign as Apple's weather shows it: three waves of air, the lowest cut short, and a drop at their
+     * foot, on a 15×13 grid, u px to a unit, its bottom left at (left, bottom). The same both ways round: not mirrored.
+     */
+    private void humiditySign(Canvas c, float left, float bottom, float u, int color) {
+        float top = bottom - HUMID_H * u, amplitude = 1.25f * u;
+        line.setColor(color);
+        line.setStyle(Paint.Style.STROKE);
+        line.setStrokeWidth(1.5f * u);
+        // Each wave a run of half waves about 4.4 units long, up first, from x 0.8 to its end.
+        // The top wave runs the width; the lower two stop short of the drop, which takes their ends' place.
+        float[] ends = {14f, 10.4f, 8.2f};
+        for (int i = 0; i < ends.length; i++) {
+            float y = top + (2.2f + 3.6f * i) * u, from = left + 0.8f * u, length = (ends[i] - 0.8f) * u;
+            int halves = Math.max(1, Math.round(length / (4.4f * u)));
+            float half = length / halves;
+            part.reset();
+            part.moveTo(from, y);
+            for (int k = 0; k < halves; k++) {
+                float x0 = from + k * half, peak = k % 2 == 0 ? y - amplitude : y + amplitude;
+                part.cubicTo(x0 + half / 3, peak, x0 + 2 * half / 3, peak, x0 + half, y);
+            }
+            c.drawPath(part, line);
+        }
+        drop(c, left + 12.3f * u, bottom, 7f * u, color);
+    }
+
     /** A drop of water h px tall standing on bottom, centred on cx: a round body under a point. */
-    private void drop(Canvas c, float cx, float bottom, float h) {
+    private void drop(Canvas c, float cx, float bottom, float h, int color) {
         float r = h * 0.38f, cy = bottom - r;
         part.reset();
         part.moveTo(cx, bottom - h);
@@ -187,7 +219,7 @@ public class WeekView extends View {
         part.cubicTo(cx - r, cy - r * 0.6f, cx - r * 0.25f, bottom - h + r * 0.8f, cx, bottom - h);
         part.close();
         line.setStyle(Paint.Style.FILL);
-        line.setColor(RAIN);
+        line.setColor(color);
         c.drawPath(part, line);
     }
 
