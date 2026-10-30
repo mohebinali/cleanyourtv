@@ -4,6 +4,13 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.16] - 2026-10-30
+
+### Changed
+- The adhan card comes in from the other side, the left in English and the right in Arabic, across the screen from
+  the normal home's pills and the weather now under them, and is a little smaller (470 by 280) so it fits between
+  the clock and the dock app's name there.
+
 ## [0.15] - 2026-10-30
 
 ### Changed

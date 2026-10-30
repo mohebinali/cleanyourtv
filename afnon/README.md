@@ -62,7 +62,7 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
 - **Qibla and room direction.** The Qibla bearing from your city, and a one-time "which way does
   the TV face" setting, so the screen can say *"Qibla is behind you"*.
 - **The adhan card.** As each prayer's time begins, the mihrab, lying on its side, slides in from the edge of the
-  screen over whatever is on, the right in English and the left in Arabic: حَيَّ عَلَى الصَّلَاةِ, the prayer's
+  screen over whatever is on, the left in English and the right in Arabic: حَيَّ عَلَى الصَّلَاةِ, the prayer's
   adhan ("Maghrib Adhan", «أذان المغرب») and its time. A gold line under it runs out over its minute, then it slides
   away. It is silent and never takes the remote, so the programme carries on. Settings → Reminders → Adhan turns it
   off, for all prayers or one at a time (the bells on Today's prayers).

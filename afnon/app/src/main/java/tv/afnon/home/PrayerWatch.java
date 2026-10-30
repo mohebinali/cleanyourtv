@@ -33,11 +33,11 @@ final class PrayerWatch {
     /** How long the adhan card stays, and its slide in and out. */
     private static final long ADHAN_MS = 60_000, SLIDE_IN_MS = 700, SLIDE_OUT_MS = 450;
     /**
-     * The adhan card: the arch on its side, 500 long and 320 high, its base on the screen's edge and its top at 290. On
-     * Home that keeps it in the clear band between the header pills (they end above 210) and the dock (below 690), and
-     * clear of the week's weather in the middle (532 to 1388), in either language.
+     * The adhan card: the arch on its side, 470 long and 280 high, its base on the screen's start edge (the left, the
+     * right in Arabic) and its top at 228. On Home that keeps it between the clock (it ends above 222) and the name of
+     * the dock app (from 522), across the screen from the pills and the week's weather under them, in either language.
      */
-    private static final int ADHAN_W = 500, ADHAN_H = 320, ADHAN_TOP = 290;
+    private static final int ADHAN_W = 470, ADHAN_H = 280, ADHAN_TOP = 228;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -47,8 +47,9 @@ final class PrayerWatch {
      */
     private String reminded, called, announced;
     private View banner;
-    /** The adhan card's window while it shows, and the card in it that slides. */
+    /** The adhan card's window while it shows, the card in it that slides, and the edge it came in from. */
     private View adhanWindow, adhanCard;
+    private boolean adhanFromLeft;
     private final Runnable slideAdhanOut = this::slideAdhanOut;
 
     private final Runnable check = new Runnable() {
@@ -129,8 +130,8 @@ final class PrayerWatch {
     // ---------------------------------------------------------------- adhan card
 
     /**
-     * The adhan card: the mihrab on its side (SideArchView), its base on the end edge of the screen (the right, the left
-     * in Arabic) and its point toward the middle, sliding in over whatever is on with حَيَّ عَلَى الصَّلَاةِ, the prayer's
+     * The adhan card: the mihrab on its side (SideArchView), its base on the start edge of the screen (the left, the
+     * right in Arabic) and its point toward the middle, sliding in over whatever is on with حَيَّ عَلَى الصَّلَاةِ, the prayer's
      * adhan ("Maghrib Adhan", «أذان المغرب») and its time. It stays a minute, a gold line under the words running out
      * with it, then slides back out.
      */
@@ -146,23 +147,25 @@ final class PrayerWatch {
         String[] names = t.prayerNames();
         if (friday && prayer == PrayerDay.DHUHR) names[PrayerDay.DHUHR] = t.jumuah();
         int w = Ui.ipx(ADHAN_W), h = Ui.ipx(ADHAN_H);
+        // The start edge, across the screen from Home's pills and the weather under them.
+        boolean fromLeft = !t.ar;
 
         FrameLayout card = new FrameLayout(service);
         // The verse's upper marks reach past its view's edge; the window still clips the slide.
         card.setClipChildren(false);
         card.setLayoutDirection(t.ar ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        card.addView(new SideArchView(service, t.ar), new FrameLayout.LayoutParams(-1, -1));
+        card.addView(new SideArchView(service, fromLeft), new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout col = new LinearLayout(service);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
         col.setClipChildren(false);
-        TextView verse = text(sacred, 26, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
+        TextView verse = text(sacred, 23, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
         verse.setTextDirection(View.TEXT_DIRECTION_RTL);
         // "Maghrib" over "Adhan" in English, «أذان» over «المغرب» in Arabic: read down, the phrase either way.
-        TextView name = text(display, t.ar ? 56 : 50, Tokens.PLASTER_100, names[prayer]);
-        TextView word = text(display, 28, Tokens.GOLD_400, t.adhanWord());
-        TextView when = text(ui, 19, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
+        TextView name = text(display, t.ar ? 50 : 44, Tokens.PLASTER_100, names[prayer]);
+        TextView word = text(display, 25, Tokens.GOLD_400, t.adhanWord());
+        TextView when = text(ui, 17, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
         when.setTextDirection(t.ar ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
         TextView first = t.ar ? word : name, second = t.ar ? name : word;
         for (TextView v : new TextView[] {verse, first, second, when}) {
@@ -173,19 +176,19 @@ final class PrayerWatch {
         }
         Screen.lineHeight(verse, 1.4f);
         Screen.lineHeight(name, 1.15f);
-        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(6);
-        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(8);
+        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(4);
+        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(6);
         // The minute left, emptying toward the start side as the banner's does.
         View fill = new View(service);
         fill.setBackgroundColor(Tokens.GOLD_400);
-        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.ipx(170), Ui.ipx(3));
-        flp.topMargin = Ui.ipx(14);
+        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.ipx(150), Ui.ipx(3));
+        flp.topMargin = Ui.ipx(12);
         col.addView(fill, flp);
         // The words in the body of the arch, past most of the curve of its point, and off the screen's edge.
-        int point = Math.round(SideArchView.tip(h) * 0.7f), edge = Ui.ipx(28);
+        int point = Math.round(SideArchView.tip(h) * 0.7f), edge = Ui.ipx(26);
         FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(w - point - edge, -2,
-            Gravity.CENTER_VERTICAL | (t.ar ? Gravity.LEFT : Gravity.RIGHT));
-        if (t.ar) clp.leftMargin = edge;
+            Gravity.CENTER_VERTICAL | (fromLeft ? Gravity.LEFT : Gravity.RIGHT));
+        if (fromLeft) clp.leftMargin = edge;
         else clp.rightMargin = edge;
         card.addView(col, clp);
 
@@ -198,10 +201,10 @@ final class PrayerWatch {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT);
-        // The end edge, between the header and the dock: the left in Arabic, the right in English.
-        lp.gravity = Gravity.TOP | (t.ar ? Gravity.LEFT : Gravity.RIGHT);
+        // The start edge, between the clock and the dock: the left in English, the right in Arabic.
+        lp.gravity = Gravity.TOP | (fromLeft ? Gravity.LEFT : Gravity.RIGHT);
         lp.y = Ui.ipx(ADHAN_TOP);
-        card.setTranslationX((t.ar ? -1 : 1) * w);
+        card.setTranslationX((fromLeft ? -1 : 1) * w);
         card.setAlpha(0f);
         try {
             service.getSystemService(WindowManager.class).addView(window, lp);
@@ -210,6 +213,7 @@ final class PrayerWatch {
         }
         adhanWindow = window;
         adhanCard = card;
+        adhanFromLeft = fromLeft;
         card.animate().translationX(0f).alpha(1f).setDuration(SLIDE_IN_MS)
             .setInterpolator(new DecelerateInterpolator(2f)).start();
         fill.post(() -> {
@@ -224,7 +228,7 @@ final class PrayerWatch {
     private void slideAdhanOut() {
         View card = adhanCard;
         if (card == null) return;
-        float away = (card.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? -1 : 1) * card.getWidth();
+        float away = (adhanFromLeft ? -1 : 1) * card.getWidth();
         card.animate().translationX(away).alpha(0f).setDuration(SLIDE_OUT_MS)
             .setInterpolator(new AccelerateInterpolator(2f)).withEndAction(this::hideAdhan).start();
     }

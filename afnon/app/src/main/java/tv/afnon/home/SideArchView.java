@@ -9,8 +9,8 @@ import android.view.View;
 
 /**
  * The mihrab on its side, for the adhan card (PrayerWatch): ArchView's arch turned a quarter, its point toward the
- * middle of the screen and its open base against the edge the card slides in from, the right in English and the
- * left in Arabic. Its sides run on to that edge, so the card can be any length; the edge itself has no line.
+ * middle of the screen and its open base against the edge the card slides in from (PrayerWatch picks it). Its sides
+ * run on to that edge, so the card can be any length; the edge itself has no line.
  */
 final class SideArchView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -18,7 +18,7 @@ final class SideArchView extends View {
     private final Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
     /** The filled shape, closed along the screen's edge; the gold line, open there; the thin line inside it. */
     private final Path shape = new Path(), outline = new Path(), innerLine = new Path();
-    /** The card comes in from the left (Arabic), so the point faces right. */
+    /** The card comes in from the left, so the point faces right. */
     private final boolean fromLeft;
 
     SideArchView(Context c, boolean fromLeft) {
