@@ -61,12 +61,13 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   Umm al-Qura calendar, so where local moon sighting differs (the United States, for one) set the offset.
 - **Qibla and room direction.** The Qibla bearing from your city, and a one-time "which way does
   the TV face" setting, so the screen can say *"Qibla is behind you"*.
-- **The adhan card.** As each prayer's time begins, the mihrab slides in from the side over whatever is on, the
-  right in English and the left in Arabic: حَيَّ عَلَى الصَّلَاةِ, the prayer's adhan ("Maghrib Adhan", «أذان المغرب»)
-  and its time. A gold line under it runs out over its minute, then it slides away. It is silent and never takes the
-  remote, so the programme carries on. Settings → Reminders → Adhan turns it off, for all prayers or one at a time
-  (the bells on Today's prayers).
-- **Reminders.** A card on Home, or a banner over other apps, 5 to 30 minutes before each prayer. It can
+- **The adhan card.** As each prayer's time begins, the mihrab, lying on its side, slides in from the edge of the
+  screen over whatever is on, the right in English and the left in Arabic: حَيَّ عَلَى الصَّلَاةِ, the prayer's
+  adhan ("Maghrib Adhan", «أذان المغرب») and its time. A gold line under it runs out over its minute, then it slides
+  away. It is silent and never takes the remote, so the programme carries on. Settings → Reminders → Adhan turns it
+  off, for all prayers or one at a time (the bells on Today's prayers).
+- **Reminders.** Off by default, so only the adhan card comes up by itself. Turned on, a card on Home, or a banner
+  over other apps, 5 to 30 minutes before each prayer. It can
   also say «اقترب موعد صلاة …», and when a prayer's adhan is off, «حان الآن موعد صلاة …» as its time begins
   (both lower whatever is playing for a moment instead of pausing it; see `tools/fetch-announce.sh` below).
 - **Friday and Ramadan.** Both modes switch themselves on from the date.

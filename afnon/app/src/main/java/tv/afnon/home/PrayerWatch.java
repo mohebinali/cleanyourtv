@@ -21,10 +21,11 @@ import java.util.Date;
 
 /**
  * Watches the clock from the remote buttons service, which the system keeps running whatever app is in front:
- * the reminder before each prayer (Home's own card, or a banner over other apps) and, when the time begins, the
- * adhan card: the arch sliding in from the side over whatever is on, "Maghrib Adhan", for a minute. Both are
- * accessibility overlays, so they need no overlay permission; they never take focus, touches or the sound, so
- * the programme goes on underneath. The banner hides after 12 s (design/ApproachVideo.dc.html).
+ * when a prayer's time begins, the adhan card, the arch on its side sliding in from the edge over whatever is on,
+ * "Maghrib Adhan", for a minute; and, only if turned on in Settings (off by default), a reminder before each prayer
+ * (Home's own card, or a banner over other apps, gone after 12 s, design/ApproachVideo.dc.html). Both are
+ * accessibility overlays, so they need no overlay permission; they never take focus, touches or the sound, so the
+ * programme goes on underneath.
  */
 final class PrayerWatch {
     private static final long CHECK_MS = 15_000;
@@ -32,10 +33,11 @@ final class PrayerWatch {
     /** How long the adhan card stays, and its slide in and out. */
     private static final long ADHAN_MS = 60_000, SLIDE_IN_MS = 700, SLIDE_OUT_MS = 450;
     /**
-     * The adhan card: the arch's 600×900 at half size, its gap to the screen's edge, and its top. On Home that puts it
-     * in the clear band between the header pills (they end above 210) and the dock (below 690), in either language.
+     * The adhan card: the arch on its side, 500 long and 320 high, its base on the screen's edge and its top at 290. On
+     * Home that keeps it in the clear band between the header pills (they end above 210) and the dock (below 690), and
+     * clear of the week's weather in the middle (532 to 1388), in either language.
      */
-    private static final int ADHAN_W = 300, ADHAN_H = 450, ADHAN_EDGE = 64, ADHAN_TOP = 226;
+    private static final int ADHAN_W = 500, ADHAN_H = 320, ADHAN_TOP = 290;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -59,6 +61,11 @@ final class PrayerWatch {
 
     PrayerWatch(AccessibilityService service) {
         this.service = service;
+        // Only the adhan card comes up by itself: a reminder left on from before 0.15 is turned off, once; Settings can
+        // turn it back on.
+        if (!Prefs.of(service).getBoolean("remind_off_0_15", false)) {
+            Prefs.of(service).edit().putInt("remind", 0).putBoolean("remind_off_0_15", true).apply();
+        }
         reminded = Prefs.of(service).getString("reminded", "");
         called = Prefs.of(service).getString("called", "");
         announced = Prefs.of(service).getString("announced", "");
@@ -122,9 +129,10 @@ final class PrayerWatch {
     // ---------------------------------------------------------------- adhan card
 
     /**
-     * The adhan card: the courtyard's arch with حَيَّ عَلَى الصَّلَاةِ, the prayer's adhan ("Maghrib Adhan", «أذان
-     * المغرب») and its time, sliding in from the end side (the right, the left in Arabic) over whatever is on. It
-     * stays a minute, a gold line under the words running out with it, then slides back out.
+     * The adhan card: the mihrab on its side (SideArchView), its base on the end edge of the screen (the right, the left
+     * in Arabic) and its point toward the middle, sliding in over whatever is on with حَيَّ عَلَى الصَّلَاةِ, the prayer's
+     * adhan ("Maghrib Adhan", «أذان المغرب») and its time. It stays a minute, a gold line under the words running out
+     * with it, then slides back out.
      */
     void showAdhan(int prayer, Date time, boolean friday) {
         hideBanner();
@@ -137,25 +145,23 @@ final class PrayerWatch {
         Typeface display = service.getResources().getFont(t.ar ? R.font.amiri_bold : R.font.marcellus_regular);
         String[] names = t.prayerNames();
         if (friday && prayer == PrayerDay.DHUHR) names[PrayerDay.DHUHR] = t.jumuah();
-        int w = Ui.ipx(ADHAN_W), h = Ui.ipx(ADHAN_H), edge = Ui.ipx(ADHAN_EDGE), inset = Ui.ipx(4);
+        int w = Ui.ipx(ADHAN_W), h = Ui.ipx(ADHAN_H);
 
         FrameLayout card = new FrameLayout(service);
-        // The arch's stroke and the verse's upper marks reach past their views' edges; the window still clips the slide.
+        // The verse's upper marks reach past its view's edge; the window still clips the slide.
         card.setClipChildren(false);
         card.setLayoutDirection(t.ar ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        // Inset by the stroke, which the view's edge would otherwise cut in half.
-        FrameLayout.LayoutParams alp = new FrameLayout.LayoutParams(w - 2 * inset, h - 2 * inset);
-        alp.setMargins(inset, inset, inset, inset);
-        card.addView(new ArchView(service), alp);
+        card.addView(new SideArchView(service, t.ar), new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout col = new LinearLayout(service);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
-        TextView verse = text(sacred, 27, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
+        col.setClipChildren(false);
+        TextView verse = text(sacred, 26, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
         verse.setTextDirection(View.TEXT_DIRECTION_RTL);
         // "Maghrib" over "Adhan" in English, «أذان» over «المغرب» in Arabic: read down, the phrase either way.
-        TextView name = text(display, t.ar ? 58 : 50, Tokens.PLASTER_100, names[prayer]);
-        TextView word = text(display, 29, Tokens.GOLD_400, t.adhanWord());
+        TextView name = text(display, t.ar ? 56 : 50, Tokens.PLASTER_100, names[prayer]);
+        TextView word = text(display, 28, Tokens.GOLD_400, t.adhanWord());
         TextView when = text(ui, 19, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
         when.setTextDirection(t.ar ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
         TextView first = t.ar ? word : name, second = t.ar ? name : word;
@@ -167,37 +173,35 @@ final class PrayerWatch {
         }
         Screen.lineHeight(verse, 1.4f);
         Screen.lineHeight(name, 1.15f);
-        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(12);
-        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(10);
-        // Under the point of the arch, where it is wide enough for the words.
-        FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(30), -2,
-            Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        clp.topMargin = Ui.ipx(150);
-        card.addView(col, clp);
-
+        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(6);
+        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(8);
         // The minute left, emptying toward the start side as the banner's does.
         View fill = new View(service);
         fill.setBackgroundColor(Tokens.GOLD_400);
-        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(50), Ui.ipx(3),
-            Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        flp.bottomMargin = Ui.ipx(40);
-        card.addView(fill, flp);
+        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.ipx(170), Ui.ipx(3));
+        flp.topMargin = Ui.ipx(14);
+        col.addView(fill, flp);
+        // The words in the body of the arch, past most of the curve of its point, and off the screen's edge.
+        int point = Math.round(SideArchView.tip(h) * 0.7f), edge = Ui.ipx(28);
+        FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(w - point - edge, -2,
+            Gravity.CENTER_VERTICAL | (t.ar ? Gravity.LEFT : Gravity.RIGHT));
+        if (t.ar) clp.leftMargin = edge;
+        else clp.rightMargin = edge;
+        card.addView(col, clp);
 
-        // The window reaches the screen's edge, so the card slides in from beyond it rather than appearing.
+        // The window is the card at the screen's edge, so the card slides in from beyond it rather than appearing.
         FrameLayout window = new FrameLayout(service);
-        window.setLayoutDirection(card.getLayoutDirection());
-        window.addView(card, new FrameLayout.LayoutParams(w, h, Gravity.START | Gravity.CENTER_VERTICAL));
+        window.addView(card, new FrameLayout.LayoutParams(w, h));
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-            w + edge, h,
+            w, h,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT);
-        // The end side, between the header and the dock: the left in Arabic, the right in English.
+        // The end edge, between the header and the dock: the left in Arabic, the right in English.
         lp.gravity = Gravity.TOP | (t.ar ? Gravity.LEFT : Gravity.RIGHT);
         lp.y = Ui.ipx(ADHAN_TOP);
-        float away = (t.ar ? -1 : 1) * (w + edge);
-        card.setTranslationX(away);
+        card.setTranslationX((t.ar ? -1 : 1) * w);
         card.setAlpha(0f);
         try {
             service.getSystemService(WindowManager.class).addView(window, lp);
@@ -220,7 +224,7 @@ final class PrayerWatch {
     private void slideAdhanOut() {
         View card = adhanCard;
         if (card == null) return;
-        float away = (card.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? -1 : 1) * (card.getWidth() + Ui.ipx(ADHAN_EDGE));
+        float away = (card.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? -1 : 1) * card.getWidth();
         card.animate().translationX(away).alpha(0f).setDuration(SLIDE_OUT_MS)
             .setInterpolator(new AccelerateInterpolator(2f)).withEndAction(this::hideAdhan).start();
     }

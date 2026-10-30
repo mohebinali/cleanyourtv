@@ -313,7 +313,7 @@ final class Prefs {
 
     /** Minutes before each prayer to show the reminder; 0 is off. */
     static int remindMinutes(Context c) {
-        return of(c).getInt("remind", 15);
+        return of(c).getInt("remind", 0);
     }
 
     static void setRemindMinutes(Context c, int minutes) {

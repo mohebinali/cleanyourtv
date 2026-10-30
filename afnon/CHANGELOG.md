@@ -4,6 +4,15 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.15] - 2026-10-30
+
+### Changed
+- The adhan card is the mihrab on its side, as the user drew it: its base against the edge it slides in from (the
+  right, the left in Arabic) and its point toward the middle, 500 by 320, between the header and the dock and clear
+  of the week's weather. The words stay upright.
+- Only the adhan card comes up by itself: the reminder before each prayer is off by default, and an install that
+  had it on is turned off once. Settings → Reminders turns it back on.
+
 ## [0.14] - 2026-10-30
 
 ### Changed
