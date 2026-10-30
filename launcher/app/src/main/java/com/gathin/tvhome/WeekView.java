@@ -17,19 +17,18 @@ import java.time.format.TextStyle;
 import java.util.Locale;
 
 /**
- * The week ahead in the middle of Home, between the header and the dock (Weather.week): a column a day with its
- * name, a line symbol for the weather, the high and the low, and the day's humidity under a drop; the city and the
- * source along the foot. In the pills' glass, so it reads as part of the top bar, and in the home's language and
+ * The next four days under the top bar's pills, as wide as their row (Weather.week): a column a day with its name,
+ * a line symbol for the weather, the high and the low, and the day's humidity under the humidity sign; the city and
+ * the source along the foot. In the pills' glass, so it reads as part of the top bar, and in the home's language and
  * digits: in Arabic today is on the right, as the dock starts there. One view, redrawn only when the days change;
- * MainActivity places it and fades it out while the grid is scrolled up under it.
+ * MainActivity places it, gives it the pill row's width, and fades it out while the grid is scrolled up under it.
  */
 public class WeekView extends View {
-    /** A day's column and the glass's margin at the sides, in dp. */
+    /** Today and the three days after it. */
+    static final int DAYS = 4;
+    /** A day's narrowest column and the glass's margin at the sides, in dp. */
     private static final float COLUMN = 56f, SIDE = 18f;
-    /**
-     * Baselines in dp from the top: day names, high, low, humidity; the symbol's top and size. Tight, so the card
-     * fits between the header and the name of the dock app above the dock (MainActivity.placeWeek).
-     */
+    /** Baselines in dp from the top: day names, high, low, humidity; the symbol's top and size. */
     private static final float NAME_Y = 21f, HIGH_Y = 72f, LOW_Y = 89f, HUMID_Y = 106f, SYMBOL_Y = 27f, SYMBOL = 24f;
     private static final int SUN = 0xFFFFCB66, CLOUD = 0xE6FFFFFF, RAIN = 0xFF6EC1FF;
 
@@ -51,6 +50,8 @@ public class WeekView extends View {
     private boolean caps = true;
     /** The reading has the days' humidity, so its row is shown (one saved before it was added has none). */
     private boolean humidRow;
+    /** The width it is given, the pill row's (setSpan); 0 for its own. */
+    private int span;
 
     public WeekView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -67,8 +68,9 @@ public class WeekView extends View {
         line.setStrokeJoin(Paint.Join.ROUND);
     }
 
-    /** Shows these days, today first; none leaves the view empty and zero-sized. */
-    void setDays(Weather.Day[] week) {
+    /** Shows the first DAYS of these, today first; none leaves the view empty and zero-sized. */
+    void setDays(Weather.Day[] all) {
+        Weather.Day[] week = java.util.Arrays.copyOf(all, Math.min(DAYS, all.length));
         Locale locale = getResources().getConfiguration().getLocales().get(0);
         caps = TextUtils.getLayoutDirectionFromLocale(locale) == LAYOUT_DIRECTION_LTR;
         String[] name = new String[week.length], high = new String[week.length];
@@ -105,13 +107,25 @@ public class WeekView extends View {
         return (humidRow ? HUMID_Y : LOW_Y) + 16f;
     }
 
+    /** Lays the days out across this many px, the columns sharing what the sides leave; never narrower than its own. */
+    void setSpan(int px) {
+        if (px == span) return;
+        span = px;
+        requestLayout();
+    }
+
+    /** The width it takes for a span: the span, or its own if that is wider (a pill row folded into one gear). */
+    int widthFor(int px) {
+        return Math.max(px, Math.round((Math.max(1, days.length) * COLUMN + 2 * SIDE) * dp));
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         if (days.length == 0) {
             setMeasuredDimension(0, 0);
             return;
         }
-        setMeasuredDimension(Math.round((days.length * COLUMN + 2 * SIDE) * dp), Math.round((footY() + 10f) * dp));
+        setMeasuredDimension(widthFor(span), Math.round((footY() + 10f) * dp));
     }
 
     @Override
@@ -129,11 +143,12 @@ public class WeekView extends View {
         c.drawRoundRect(box, radius, radius, edge);
 
         text.setTextAlign(Paint.Align.CENTER);
+        float column = (w - 2 * SIDE * dp) / days.length;
         for (int i = 0; i < days.length; i++) {
-            float mid = (SIDE + COLUMN * i + COLUMN / 2) * dp;
+            float mid = SIDE * dp + column * (i + 0.5f);
             float x = mirrored ? w - mid : mid;
             // Arabic day names run long ("الثلاثاء"): each keeps 6dp from the next column.
-            label(c, names[i], x, NAME_Y, medium, 11, i == 0 ? 0xFFFFFFFF : 0xA6FFFFFF, spacing, (COLUMN - 6) * dp);
+            label(c, names[i], x, NAME_Y, medium, 11, i == 0 ? 0xFFFFFFFF : 0xA6FFFFFF, spacing, column - 6 * dp);
             symbol(c, days[i].code, x - SYMBOL * dp / 2, SYMBOL_Y * dp, SYMBOL * dp);
             label(c, highs[i], x, HIGH_Y, regular, 20, 0xFFFFFFFF, 0f, 0);
             label(c, lows[i], x, LOW_Y, light, 15, 0x8CFFFFFF, 0f, 0);

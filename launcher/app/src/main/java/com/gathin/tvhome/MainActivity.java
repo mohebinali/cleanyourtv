@@ -169,10 +169,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean animations;
     private boolean advancedEffects;
     private TextView greeting;
-    /** The week ahead between the header and the dock (placeWeek); empty until the first reading with days lands. */
+    /** The next four days under the pills (placeWeek); empty until the first reading with days lands. */
     private WeekView week;
-    /** The row of pills, which with the clock makes the header the week sits under, and a scratch pair for
-     *  placeWeek's screen positions. */
+    /** The row of pills the week hangs under, as wide as it, and a scratch pair for placeWeek's screen positions. */
     private View pillRow;
     private final int[] spot = new int[2];
     private View clockBlock;
@@ -2300,34 +2299,39 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * The week sits in the middle of the room between the header (the clock and the pills) and what is over the
-     * dock: the focused app's name (showHero), or with that off the dock's band. Centred across the screen by its
-     * layout, it fades out over the first 48dp the grid scrolls up under it. With no room (a short screen, no dock
-     * row) it stays out of sight.
+     * The week hangs 16dp under the pills, as wide as their row: from the first pill's start to the last one's end
+     * (Wi-Fi to Settings). It shows when the dock leaves room for it above its band, and fades out over the first 48dp
+     * the grid scrolls up under it. With no room (a short screen, no dock row) it stays out of sight.
      */
     private void placeWeek() {
-        if (week == null || pillRow == null || grid == null || clockBlock == null) return;
+        if (week == null || pillRow == null || grid == null) return;
         root.getLocationInWindow(spot);
-        int rootTop = spot[1];
+        int rootLeft = spot[0], rootTop = spot[1];
         pillRow.getLocationInWindow(spot);
-        float header = spot[1] - rootTop + pillRow.getHeight();
-        // The clock, and the stats line and race panel under it when a theme turns them on.
-        for (View v : new View[]{clockBlock, stats, racePanel}) {
-            if (v == null || v.getVisibility() != View.VISIBLE) continue;
-            v.getLocationInWindow(spot);
-            header = Math.max(header, spot[1] - rootTop + v.getHeight());
+        int rowLeft = spot[0] - rootLeft;
+        float top = spot[1] - rootTop + pillRow.getHeight() + 16 * density;
+        // The pills' layout edges, not where focus has zoomed one to, so the card keeps still as focus moves.
+        ViewGroup row = (ViewGroup) pillRow;
+        int left = Integer.MAX_VALUE, right = Integer.MIN_VALUE;
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View pill = row.getChildAt(i);
+            if (pill.getVisibility() != View.VISIBLE) continue;
+            left = Math.min(left, rowLeft + pill.getLeft());
+            right = Math.max(right, rowLeft + pill.getRight());
         }
+        if (right <= left) {
+            week.setAlpha(0f);
+            return;
+        }
+        week.setSpan(right - left);
+        // Wider than the pills (one gear in top_menu), it keeps to their side: the right, the left in Arabic.
+        week.setX(getResources().getBoolean(R.bool.rtl_menu_bar) ? left : right - week.widthFor(right - left));
+        week.setY(top);
         grid.getLocationInWindow(spot);
-        float dock = spot[1] - rootTop + grid.getPaddingTop();
         // The dock's band reaches about 8dp above the grid's top padding (DockDecoration); keep 12dp clear of it.
-        float bottom = dock - 20 * density;
-        // The app's name stands 40dp over the dock's tiles (showHero), which start 14dp into the band: DockDecoration's
-        // 6dp and the item's 8dp padding.
-        if (hero.getVisibility() != View.GONE) bottom = Math.min(bottom, dock + 14 * density - 40 * density - hero.getHeight());
-        float room = bottom - header, gap = 6 * density;
-        boolean fits = week.getHeight() > 0 && week.getHeight() + 2 * gap <= room;
-        week.setY(header + Math.max(gap, (room - week.getHeight()) / 2));
+        float room = spot[1] - rootTop + grid.getPaddingTop() - 20 * density - top;
         float scrolled = grid.computeVerticalScrollOffset() / (48 * density);
+        boolean fits = week.getHeight() > 0 && week.getHeight() <= room;
         week.setAlpha(fits ? Math.max(0f, 1f - scrolled) : 0f);
     }
 
