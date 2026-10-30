@@ -78,6 +78,8 @@ final class PrayerWatch {
         boolean asleep = pm != null && !pm.isInteractive();
         // Asleep: nothing to show, unless the radio plays with the screen off (TCL Audio Only), for the spoken
         // announcement. The adhan card is not worth waking the screen for: it is let go, as its minute would be.
+        // A card left up as the screen went off would come back with the screen: it goes with the screen.
+        if (asleep) hideAdhan();
         if (asleep && !Radio.on()) return;
         PrayerDay day = new PrayerDay(service, now);
 
@@ -135,6 +137,8 @@ final class PrayerWatch {
         int w = Ui.ipx(ADHAN_W), h = Ui.ipx(ADHAN_H), edge = Ui.ipx(ADHAN_EDGE), inset = Ui.ipx(4);
 
         FrameLayout card = new FrameLayout(service);
+        // The arch's stroke and the verse's upper marks reach past their views' edges; the window still clips the slide.
+        card.setClipChildren(false);
         card.setLayoutDirection(t.ar ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
         // Inset by the stroke, which the view's edge would otherwise cut in half.
         FrameLayout.LayoutParams alp = new FrameLayout.LayoutParams(w - 2 * inset, h - 2 * inset);

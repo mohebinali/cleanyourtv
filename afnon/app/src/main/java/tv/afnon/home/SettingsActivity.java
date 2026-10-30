@@ -332,13 +332,6 @@ public class SettingsActivity extends Screen {
                     }
                 },
                 new Row(SEG) {
-                    String label() { return t.afterAdhanRow(); }
-                    String help() { return t.afterAdhanHelp(); }
-                    String[] segs() { return t.afterAdhanChoices(); }
-                    int selected() { return Prefs.radioResume(c) ? 0 : 1; }
-                    void select(int i) { Prefs.setRadioResume(c, i == 0); }
-                },
-                new Row(SEG) {
                     final int[] minutes = {0, 15, -1};
                     String label() { return t.radioDarkRow(); }
                     String help() { return t.radioDarkHelp(); }

@@ -152,8 +152,9 @@ public class AfnonDream extends DreamService {
 
     private void render() {
         Date now = new Date();
-        // The call to prayer: wake the TV out of the screensaver so the call screen can open over what was on.
-        if (day != null && Reminders.dueCall(this, day, now) >= 0) {
+        // The call to prayer: wake the TV out of the screensaver so the adhan card shows over what was on; not out of
+        // the dark radio screen, which keeps the screen off on purpose.
+        if (!dark && day != null && Reminders.dueCall(this, day, now) >= 0) {
             running = false;
             wakeUp();
             return;

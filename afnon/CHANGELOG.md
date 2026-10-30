@@ -4,6 +4,17 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.13] - 2026-10-30
+
+### Fixed
+- The adhan card cut the fatha off the top of حَيَّ عَلَى الصَّلَاةِ and drew the arch's border half as thick on its
+  sides: the card clipped its own children.
+- A card still up when the screen went off came back with the screen; it goes with the screen now.
+- Opened from an app list (its tile), Afnon shows its own screen again, for the radio, Today & Qibla and Settings,
+  instead of passing straight on to the normal home; only Home starts go there. That screen has no Theme pill.
+- Settings → Radio dropped After the adhan: nothing pauses the radio for the adhan any more.
+- The radio's dark screensaver no longer wakes the screen at a prayer time.
+
 ## [0.12] - 2026-10-30
 
 ### Changed

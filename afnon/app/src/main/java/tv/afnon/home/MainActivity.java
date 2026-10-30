@@ -95,7 +95,7 @@ public class MainActivity extends Screen {
     protected void onCreate(Bundle state) {
         // Decided before super.onCreate, which builds the whole courtyard: with the normal home installed this is
         // only a stop on the way there, so build() returns at once instead.
-        handingOff = wantsNormal();
+        handingOff = wantsNormal() && !fromAppList(getIntent());
         super.onCreate(state);
         if (handingOff) { testWatch(getIntent()); openNormalHome(); finish(); return; }
         runTest(getIntent());
@@ -110,6 +110,14 @@ public class MainActivity extends Screen {
      */
     private boolean wantsNormal() {
         return normalHomeIntent() != null;
+    }
+
+    /**
+     * Opened as an app (its tile in an app list) rather than as Home: then Afnon's own screen shows, for its radio,
+     * Today & Qibla and Settings, and Home still goes to the normal home.
+     */
+    private static boolean fromAppList(Intent i) {
+        return i != null && i.hasCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
     }
 
     /**
@@ -155,7 +163,7 @@ public class MainActivity extends Screen {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (wantsNormal()) { testWatch(intent); openNormalHome(); return; }
+        if (wantsNormal() && !fromAppList(intent)) { testWatch(intent); openNormalHome(); return; }
         // Only an adb test's language or digits is applied here. Settings changed while Home was away are left to
         // Screen.onResume, which rebuilds when they differ from what Home was built with; loading them here would
         // record them as built and skip that.
@@ -308,13 +316,12 @@ public class MainActivity extends Screen {
         LinearLayout pills = new LinearLayout(this);
         pills.setClipChildren(false);
         float reach = FocusTile.REACH;
-        // Language first, then Theme: the two looks of the TV, beside each other.
+        // Language, then Wi-Fi. No Theme pill: the prayer theme is gone, so there is no other look to switch to
+        // (this screen is Afnon's app now, and Home only while the normal home is missing). Its node stays built
+        // and off screen, so the focus map's slots keep their numbers; nothing moves focus to it.
         nodes[LANGUAGE] = languagePill();
         pills.addView(nodes[LANGUAGE], new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach)));
         nodes[THEME] = themePill();
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach));
-        tlp.setMarginStart(Ui.ipx(20 - 2 * reach));
-        pills.addView(nodes[THEME], tlp);
         LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(-2, Ui.ipx(72 + 2 * reach));
         wlp.setMarginStart(Ui.ipx(20 - 2 * reach));
         pills.addView(nodes[WIFI], wlp);
@@ -1240,19 +1247,18 @@ public class MainActivity extends Screen {
         boolean up = key == KeyEvent.KEYCODE_DPAD_UP, down = key == KeyEvent.KEYCODE_DPAD_DOWN;
         int to = -1;
         switch (from) {
-            // The header runs Language, Theme, Wi-Fi, Settings; each sits over one favourite, in order.
+            // The header runs Language, Wi-Fi, Settings over the favourites.
             case ARCH: to = right ? F0 : up ? LANGUAGE : -1; break;
             case RADIO: to = left ? ARCH : right ? WIFI : down ? F0 + 1 : -1; break;
-            case LANGUAGE: to = left ? ARCH : right ? THEME : down ? F0 : -1; break;
-            case THEME: to = left ? LANGUAGE : right ? WIFI : down ? F0 + 1 : -1; break;
-            case WIFI: to = left ? THEME : right ? SETTINGS : down ? F0 + 2 : -1; break;
+            case LANGUAGE: to = left ? ARCH : right ? WIFI : down ? F0 : -1; break;
+            case WIFI: to = left ? LANGUAGE : right ? SETTINGS : down ? F0 + 2 : -1; break;
             case SETTINGS: to = left ? WIFI : down ? F0 + 3 : -1; break;
             default:
                 if (from >= F0 && from < M0) {
                     int i = from - F0;
                     if (left) to = i == 0 ? ARCH : from - 1;
                     else if (right) to = i == 3 ? -1 : from + 1;
-                    else if (up) to = i == 3 ? SETTINGS : i == 2 ? WIFI : i == 1 ? THEME : LANGUAGE;
+                    else if (up) to = i == 3 ? SETTINGS : i == 2 ? WIFI : LANGUAGE;
                     else to = M0 + new int[] {0, 1, 3, 4}[i];
                 } else {
                     int i = from - M0;

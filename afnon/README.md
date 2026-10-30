@@ -92,8 +92,9 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   switches the whole TV, English first and Arabic second (or the other way round), Arabic with Latin digits, and
   both homes follow it.
 - **With the normal home.** When CleanYourTV's launcher (`com.gathin.tvhome`) is installed, it is Home: Afnon hands
-  every Home press to it and comes to the screen only as the reminders and the adhan card. Afnon's own screen is
-  drawn only when that launcher is missing, so the TV always has a home.
+  every Home press to it and comes to the screen as the reminders and the adhan card. Afnon's own screen (radio,
+  Today & Qibla, Settings) opens from its app tile, and as Home only when that launcher is missing, so the TV
+  always has a home.
 - **Light on the TV.** Plain Java and Views, with no AndroidX, Kotlin or Compose. No blur, no
   video, no shadows. It runs smoothly on a 1.8 GB TV.
 
