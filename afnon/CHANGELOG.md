@@ -4,6 +4,12 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.14] - 2026-10-30
+
+### Changed
+- The adhan card is a size smaller (the arch at half size) and sits between the header and the dock instead of
+  half way down, so on Home it no longer covers the dock's last tile.
+
 ## [0.13] - 2026-10-30
 
 ### Fixed

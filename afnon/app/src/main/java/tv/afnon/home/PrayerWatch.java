@@ -31,8 +31,11 @@ final class PrayerWatch {
     private static final int BANNER_SECONDS = 12;
     /** How long the adhan card stays, and its slide in and out. */
     private static final long ADHAN_MS = 60_000, SLIDE_IN_MS = 700, SLIDE_OUT_MS = 450;
-    /** The adhan card: the arch's 600×900 at a little over half size, and its gap to the screen's edge. */
-    private static final int ADHAN_W = 330, ADHAN_H = 495, ADHAN_EDGE = 64;
+    /**
+     * The adhan card: the arch's 600×900 at half size, its gap to the screen's edge, and its top. On Home that puts it
+     * in the clear band between the header pills (they end above 210) and the dock (below 690), in either language.
+     */
+    private static final int ADHAN_W = 300, ADHAN_H = 450, ADHAN_EDGE = 64, ADHAN_TOP = 226;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -148,12 +151,12 @@ final class PrayerWatch {
         LinearLayout col = new LinearLayout(service);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
-        TextView verse = text(sacred, 30, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
+        TextView verse = text(sacred, 27, Tokens.GOLD_400, "حَيَّ عَلَى الصَّلَاةِ");
         verse.setTextDirection(View.TEXT_DIRECTION_RTL);
         // "Maghrib" over "Adhan" in English, «أذان» over «المغرب» in Arabic: read down, the phrase either way.
-        TextView name = text(display, t.ar ? 64 : 56, Tokens.PLASTER_100, names[prayer]);
-        TextView word = text(display, 32, Tokens.GOLD_400, t.adhanWord());
-        TextView when = text(ui, 21, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
+        TextView name = text(display, t.ar ? 58 : 50, Tokens.PLASTER_100, names[prayer]);
+        TextView word = text(display, 29, Tokens.GOLD_400, t.adhanWord());
+        TextView when = text(ui, 19, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
         when.setTextDirection(t.ar ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
         TextView first = t.ar ? word : name, second = t.ar ? name : word;
         for (TextView v : new TextView[] {verse, first, second, when}) {
@@ -164,20 +167,20 @@ final class PrayerWatch {
         }
         Screen.lineHeight(verse, 1.4f);
         Screen.lineHeight(name, 1.15f);
-        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(14);
-        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(12);
+        ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(12);
+        ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(10);
         // Under the point of the arch, where it is wide enough for the words.
-        FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(34), -2,
+        FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(30), -2,
             Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        clp.topMargin = Ui.ipx(166);
+        clp.topMargin = Ui.ipx(150);
         card.addView(col, clp);
 
         // The minute left, emptying toward the start side as the banner's does.
         View fill = new View(service);
         fill.setBackgroundColor(Tokens.GOLD_400);
-        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(56), Ui.ipx(3),
+        FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(w - 2 * Ui.ipx(50), Ui.ipx(3),
             Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        flp.bottomMargin = Ui.ipx(44);
+        flp.bottomMargin = Ui.ipx(40);
         card.addView(fill, flp);
 
         // The window reaches the screen's edge, so the card slides in from beyond it rather than appearing.
@@ -190,8 +193,9 @@ final class PrayerWatch {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT);
-        // The end side, half way down: the left in Arabic, the right in English.
-        lp.gravity = Gravity.CENTER_VERTICAL | (t.ar ? Gravity.LEFT : Gravity.RIGHT);
+        // The end side, between the header and the dock: the left in Arabic, the right in English.
+        lp.gravity = Gravity.TOP | (t.ar ? Gravity.LEFT : Gravity.RIGHT);
+        lp.y = Ui.ipx(ADHAN_TOP);
         float away = (t.ar ? -1 : 1) * (w + edge);
         card.setTranslationX(away);
         card.setAlpha(0f);
