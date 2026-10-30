@@ -43,7 +43,7 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
 | ![Home in English](docs/screenshots/home-en.png) | ![Today's prayers and Qibla](docs/screenshots/prayer-day.png) |
 | **Home (English).** The clock follows the TV's 12/24-hour setting. Gregorian and Hijri dates, six prayer times with the next one marked, favourites and more apps. | **Today's prayers.** Every time with its countdown, an adhan on/off bell per prayer, and the Qibla bearing from your city. |
 | ![Quran Radio card](docs/screenshots/radio.png) | ![Call to prayer](docs/screenshots/call.png) |
-| **Quran Radio.** A header pill opens the station card. The bars breathe while it plays. | **The call.** At prayer time the screen comes up over whatever is playing and the adhan plays by itself. |
+| **Quran Radio.** A header pill opens the station card. The bars breathe while it plays. | **The adhan card.** At prayer time the arch slides in from the side over whatever is on (here the old full-screen call it replaced), «أذان المغرب» with its time, for a minute. |
 | ![Reminder before the prayer](docs/screenshots/reminder.png) | ![Screensaver](docs/screenshots/screensaver.png) |
 | **Reminder.** A card a few minutes before the prayer (a banner when another app is open). | **Screensaver.** A dim, drifting arch with the clock and the next prayer, plus the radio when it plays. |
 | ![Friday](docs/screenshots/friday.png) | ![Ramadan](docs/screenshots/ramadan.png) |
@@ -61,8 +61,11 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   Umm al-Qura calendar, so where local moon sighting differs (the United States, for one) set the offset.
 - **Qibla and room direction.** The Qibla bearing from your city, and a one-time "which way does
   the TV face" setting, so the screen can say *"Qibla is behind you"*.
-- **The adhan.** 14 voices to choose from, plus a separate Fajr adhan. If the TV is muted or at
-  zero, the volume comes up for the adhan and goes back afterwards.
+- **The adhan card.** As each prayer's time begins, the mihrab slides in from the side over whatever is on, the
+  right in English and the left in Arabic: حَيَّ عَلَى الصَّلَاةِ, the prayer's adhan ("Maghrib Adhan", «أذان المغرب»)
+  and its time. A gold line under it runs out over its minute, then it slides away. It is silent and never takes the
+  remote, so the programme carries on. Settings → Reminders → Adhan turns it off, for all prayers or one at a time
+  (the bells on Today's prayers).
 - **Reminders.** A card on Home, or a banner over other apps, 5 to 30 minutes before each prayer. It can
   also say «اقترب موعد صلاة …», and when a prayer's adhan is off, «حان الآن موعد صلاة …» as its time begins
   (both lower whatever is playing for a moment instead of pausing it; see `tools/fetch-announce.sh` below).
@@ -77,7 +80,6 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   - Ten reciters' 24/7 channels from mp3quran.net (Alafasy, Abdul Basit, Al-Minshawi, Al-Husary, Al-Muaiqly,
     Al-Ghamdi, Al-Sudais, Al-Dosari, Al-Qatami, Mohammad Rashad Al-Shareef).
   - Level bars that breathe while it plays (Afnon never reads the audio).
-  - It pauses for the adhan and resumes after.
   - **Screen off while listening**, using TCL's own Audio Only mode: the panel goes dark and the
     recitation keeps playing.
 - **Remote buttons.** An accessibility service maps the remote's app buttons, and its Settings,
@@ -85,9 +87,13 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   On Google TV, where the stock launcher keeps Home for as long as it is enabled, the same service puts
   Afnon over the stock home screen whenever it comes up (`HomeTakeover.java`), so the launcher and the
   setup wizard can stay enabled. Casting needs the wizard: the Cast receiver loads its credentials from it.
-- **Arabic and English.** RTL and LTR layouts. Language follows the TV or is set in Afnon. Digits
-  are Arabic-Indic or Latin. The **Language** pill in the header switches the whole TV, English first and Arabic
-  second (or the other way round), and both homes follow it.
+- **Arabic and English.** RTL and LTR layouts. Language follows the TV or is set in Afnon. Digits are Latin
+  (0-9) in both languages unless Settings → Display picks Arabic-Indic (٠-٩). The **Language** pill in the header
+  switches the whole TV, English first and Arabic second (or the other way round), Arabic with Latin digits, and
+  both homes follow it.
+- **With the normal home.** When CleanYourTV's launcher (`com.gathin.tvhome`) is installed, it is Home: Afnon hands
+  every Home press to it and comes to the screen only as the reminders and the adhan card. Afnon's own screen is
+  drawn only when that launcher is missing, so the TV always has a home.
 - **Light on the TV.** Plain Java and Views, with no AndroidX, Kotlin or Compose. No blur, no
   video, no shadows. It runs smoothly on a 1.8 GB TV.
 
@@ -171,7 +177,7 @@ in Developer options, revoke the USB debugging authorisations, reboot, and check
 |---|---|
 | Change favourites | Hold **OK** on an app in All apps or on a More tile on Home → *Put in favourites instead of…*; on a favourite → *Move earlier* or *Move later in favourites* |
 | Uninstall an app, or see its permissions | Hold **OK** on it in All apps, or on its Favourites or More tile on Home → *Uninstall* (apps you installed), or *Details* (Android's App info page) |
-| Change city, method, adhan voice, radio options | The remote's **Settings** button, or the gear on Home |
+| Change city, method, reminders, radio options | The remote's **Settings** button, or the gear on Home |
 | Point a remote button at another app | Edit the table at the top of `RemoteKeys.java`, then `bash tools/install.sh` |
 | Change colours or the star pattern | `Tokens.java` (the design tokens) and `Ui.starLattice` |
 | Disable a stock app | `bash tools/disable.sh <package>` (reversible; logged to `state/disabled.log`) |
@@ -181,12 +187,13 @@ in Developer options, revoke the USB debugging authorisations, reboot, and check
 ### Trying things without waiting for a prayer
 
 These go to `tv.afnon.home/.Test`, which needs `WRITE_SECURE_SETTINGS`, so only the adb shell can start it. Home
-itself ignores them, since any app on the TV can start Home.
+itself ignores them, since any app on the TV can start Home. With the normal home installed only `adhan`, `banner`
+and `announce` run: the others need Afnon's own screen.
 
 ```bash
 adb shell am start -n tv.afnon.home/.Test --es test friday    # or ramadan, now (back to today)
 adb shell am start -n tv.afnon.home/.Test --es test reminder  # Home's reminder card, spoken
-adb shell am start -n tv.afnon.home/.Test --es test call      # the call screen, 8 s later
+adb shell am start -n tv.afnon.home/.Test --es test adhan     # the adhan card, 8 s later (call works too)
 adb shell am start -n tv.afnon.home/.Test --es test banner    # the banner and its voice, 8 s later (open another app)
 adb shell am start -n tv.afnon.home/.Test --es test announce  # «حان الآن موعد صلاة …», 8 s later
 adb shell am start -n tv.afnon.home/.Test --es test radio     # radio on / off
@@ -231,9 +238,8 @@ app/src/main/java/tv/afnon/home/
   AllAppsActivity     Every app; hold OK for its menu
   AppMenu             The hold-OK menu in All apps and on Home: move in favourites, uninstall, details
   SettingsActivity    On-TV settings (prayer, reminders, radio, display, network, device)
-  NowActivity         The call to prayer
   AfnonDream          Screensaver
-  PrayerWatch         Reminders, banner and the call, run inside the accessibility service
+  PrayerWatch         Reminders, banner and the adhan card, run inside the accessibility service
   RemoteKeys          Remote button mapping
   HomeTakeover        Home on Afnon where the firmware keeps it on the stock launcher (Google TV)
   TclKeys             The same buttons through TCL's own remapping, so held keys still repeat

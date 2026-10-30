@@ -93,12 +93,11 @@ public class MainActivity extends Screen {
 
     @Override
     protected void onCreate(Bundle state) {
-        // Decided before super.onCreate, which builds the whole courtyard: when the chosen theme is the
-        // other home there is no point drawing this one first, so build() returns at once instead.
-        applyThemeExtra(getIntent());
+        // Decided before super.onCreate, which builds the whole courtyard: with the normal home installed this is
+        // only a stop on the way there, so build() returns at once instead.
         handingOff = wantsNormal();
         super.onCreate(state);
-        if (handingOff) { openNormalHome(); finish(); return; }
+        if (handingOff) { testWatch(getIntent()); openNormalHome(); finish(); return; }
         runTest(getIntent());
     }
 
@@ -106,16 +105,24 @@ public class MainActivity extends Screen {
     private boolean handingOff;
 
     /**
-     * The normal home's Theme menu sends the new choice here, since Afnon is the one that keeps it. Any app can
-     * start Home, so only the two themes are taken.
+     * The normal home is Home whenever it is installed: the prayer theme is gone, and the prayers come to whatever is
+     * on as the adhan card (PrayerWatch). The courtyard is drawn only with that home missing, so the TV always has one.
      */
-    private void applyThemeExtra(Intent i) {
-        String choice = i == null ? null : i.getStringExtra("theme");
-        if ("prayer".equals(choice) || "normal".equals(choice)) Prefs.setTheme(this, choice);
+    private boolean wantsNormal() {
+        return normalHomeIntent() != null;
     }
 
-    private boolean wantsNormal() {
-        return "normal".equals(Prefs.theme(this)) && normalHomeIntent() != null;
+    /**
+     * The remote buttons service's test hooks (banner, adhan or call, announce) need no courtyard, so they run on the
+     * way to the normal home too; the others in runTest need this screen.
+     */
+    private static void testWatch(Intent i) {
+        if (!fromShell(i) || RemoteKeys.watch == null) return;
+        String kind = i.getStringExtra("test");
+        if ("banner".equals(kind) || "adhan".equals(kind) || "call".equals(kind) || "announce".equals(kind)) {
+            i.removeExtra("test");
+            RemoteKeys.watch.test(kind, 8000);
+        }
     }
 
     /**
@@ -148,8 +155,7 @@ public class MainActivity extends Screen {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        applyThemeExtra(intent);
-        if (wantsNormal()) { openNormalHome(); return; }
+        if (wantsNormal()) { testWatch(intent); openNormalHome(); return; }
         // Only an adb test's language or digits is applied here. Settings changed while Home was away are left to
         // Screen.onResume, which rebuilds when they differ from what Home was built with; loading them here would
         // record them as built and skip that.
@@ -165,11 +171,11 @@ public class MainActivity extends Screen {
 
     /**
      * Checking reminders on the TV without waiting for a prayer: `--es test reminder` shows Home's card now, with
-     * the spoken reminder if it is on; `banner`, `call` and `announce` come from the remote buttons service 8 s
-     * later, time enough to open another app.
+     * the spoken reminder if it is on; `banner`, `adhan` (or `call`) and `announce` come from the remote buttons
+     * service 8 s later, time enough to open another app (testWatch, also on the way to the normal home).
      * `--es station <id>` (ids in Radio.STATIONS) picks a radio station as Settings does, before any test runs.
      * Only from adb, through the .Test alias (`am start -n tv.afnon.home/.Test`): Home itself is exported, and
-     * these change settings, play the radio (which turns the sleep timer off) and put up the call screen.
+     * these change settings, play the radio (which turns the sleep timer off) and put up the adhan card.
      */
     private void runTest(Intent i) {
         if (!fromShell(i)) return;

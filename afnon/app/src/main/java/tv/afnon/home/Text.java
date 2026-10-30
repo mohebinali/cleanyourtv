@@ -7,7 +7,7 @@ import com.batoulapps.adhan.Madhab;
 /** Interface strings for both locales, taken from the `t` tables in design/Home.dc.html. */
 final class Text {
     final boolean ar;
-    /** Eastern Arabic digits (٠١٢٣). Its own setting; defaults to on in Arabic. */
+    /** Eastern Arabic digits (٠١٢٣). Its own setting, off by default: Arabic keeps 0-9 too, as the TV does. */
     final boolean eastern;
 
     Text(boolean ar, boolean eastern) {
@@ -95,6 +95,8 @@ final class Text {
         return d((ar ? "الأذان " : "Adhan ") + time + (ar ? " · يختفي خلال " + seconds + " ث" : " · hides in " + seconds + " s"));
     }
     String nowLabel() { return ar ? "حان الآن وقت صلاة" : "IT'S TIME FOR"; }
+    /** The adhan card's word with the prayer's name: "Maghrib" over "Adhan", «أذان» over «المغرب». */
+    String adhanWord() { return ar ? "أذان" : "Adhan"; }
     String play() { return ar ? "تشغيل الأذان" : "Play adhan"; }
     String stop() { return ar ? "إيقاف الأذان" : "Stop adhan"; }
     String dismiss() { return ar ? "إغلاق" : "Dismiss"; }
@@ -267,7 +269,10 @@ final class Text {
         return ar ? "«حان الآن موعد صلاة …» للصلاة التي أذانها متوقف" : "Says «حان الآن موعد صلاة …» when a prayer's adhan is off";
     }
     String adhanRow() { return ar ? "الأذان" : "Adhan"; }
-    String adhanHelp() { return ar ? "يُشغَّل عند دخول الوقت · يمكن إيقافه لكل صلاة" : "Plays when the time begins · can be muted per prayer"; }
+    String adhanHelp() {
+        return ar ? "بطاقة جانبية لدقيقة عند دخول الوقت · يمكن إيقافها لكل صلاة"
+                  : "A card at the side for a minute when the time begins · can be turned off per prayer";
+    }
     String language() { return ar ? "اللغة" : "Language"; }
     String languageHelp() { return ar ? "«التلفاز» يتبع لغة التلفاز" : "“TV” follows the TV's language"; }
     String[] languages() { return new String[] {ar ? "التلفاز" : "TV", "العربية", "English"}; }

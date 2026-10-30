@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.LocaleList;
 import android.os.Looper;
 
+import java.util.IllformedLocaleException;
 import java.util.Locale;
 
 /**
@@ -13,7 +14,8 @@ import java.util.Locale;
  *
  * Sets the whole TV's languages as Settings > System > Language does, so every app follows, the normal home included,
  * and Afnon, with its language on System, rebuilds when the change reaches it (Screen.onConfigurationChanged). That
- * takes CHANGE_CONFIGURATION and the WRITE_SETTINGS app-op, both granted over adb by tools/install.sh.
+ * takes CHANGE_CONFIGURATION and the WRITE_SETTINGS app-op, both granted over adb by tools/install.sh. Arabic goes in
+ * with Western digits (the Unicode "nu-latn" extension), as the normal home's Language pill sets it: 0-9 everywhere.
  */
 final class Language {
     private Language() {}
@@ -40,11 +42,21 @@ final class Language {
         }, "afnon-language").start();
     }
 
-    /** The TV's own form of a language when it lists one (en-GB stays en-GB), else US English or plain Arabic. */
+    /**
+     * The TV's own form of a language when it lists one (en-GB stays en-GB), else US English or plain Arabic; Arabic
+     * with Western digits.
+     */
     private static Locale variant(LocaleList list, String language) {
-        for (int i = 0; i < list.size(); i++) {
-            if (language.equals(list.get(i).getLanguage())) return list.get(i);
+        Locale found = null;
+        for (int i = 0; i < list.size() && found == null; i++) {
+            if (language.equals(list.get(i).getLanguage())) found = list.get(i);
         }
-        return "en".equals(language) ? Locale.US : Locale.forLanguageTag("ar");
+        if (found == null) found = "en".equals(language) ? Locale.US : Locale.forLanguageTag("ar");
+        if (!"ar".equals(language)) return found;
+        try {
+            return new Locale.Builder().setLocale(found).setUnicodeLocaleKeyword("nu", "latn").build();
+        } catch (IllformedLocaleException e) {
+            return Locale.forLanguageTag("ar-u-nu-latn");
+        }
     }
 }

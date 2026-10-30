@@ -101,8 +101,8 @@ abstract class Screen extends Activity {
 
     /**
      * Language and digits. "locale" is "system" (default: Arabic only when the TV's language is Arabic), "ar" or
-     * "en"; "digits" is empty (Eastern in Arabic, Western in English), "eastern" or "western". Set in Afnon
-     * Settings, or for testing: `adb shell am start -n tv.afnon.home/.Test --es locale ar|en|system`.
+     * "en"; "digits" is empty (Western, 0-9, in either language), "eastern" or "western". Set in Afnon Settings, or
+     * for testing: `adb shell am start -n tv.afnon.home/.Test --es locale ar|en|system`.
      */
     void loadSettings(Intent i) {
         SharedPreferences p = prefs();
@@ -132,8 +132,8 @@ abstract class Screen extends Activity {
         boolean ar = "system".equals(locale)
             ? "ar".equals(c.getResources().getConfiguration().getLocales().get(0).getLanguage())
             : "ar".equals(locale);
-        String digits = p.getString("digits", "");
-        boolean eastern = digits.isEmpty() ? ar : "eastern".equals(digits);
+        // Eastern digits (٠١٢٣) only when chosen in Settings: Arabic keeps 0-9, as the TV's Language pill sets it.
+        boolean eastern = "eastern".equals(p.getString("digits", ""));
         Text t = new Text(ar, eastern);
         Prefs.City city = Prefs.city(c);
         t.cityName = ar ? city.ar : city.en;
@@ -290,6 +290,8 @@ abstract class Screen extends Activity {
         for (int i = 0; i < h.size(); i++) {
             TextView v = text(ui400, 22, Tokens.MIST_400);
             v.setText(h.get(i));
+            // The key first in either language: "OK  فتح" starts with a Latin letter, which would set it left to right.
+            v.setTextDirection(rtl ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             if (i > 0) lp.setMarginStart(Ui.ipx(40));
             hints.addView(v, lp);

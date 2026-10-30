@@ -4,6 +4,25 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.12] - 2026-10-30
+
+### Changed
+- The prayer theme is gone: with the normal home installed it is always Home, and Afnon hands every Home press to
+  it. Afnon's own screen is drawn only when that home is missing, so the TV is never left without one.
+- The call to prayer is a card now, not a screen: as each prayer's time begins, the mihrab slides in from the side
+  (the right in English, the left in Arabic) over whatever is on, with حَيَّ عَلَى الصَّلَاةِ, the prayer's adhan
+  ("Maghrib Adhan", «أذان المغرب») and its time, and slides away after a minute as a gold line under it runs out.
+  It is silent and never takes the remote, so the programme carries on. It replaces the full-screen call and its
+  adhan recording, so Settings → Reminders loses Close the call screen and the two adhan voice rows; Adhan and the
+  per-prayer bells now turn the card on and off. The adb test is `--es test adhan` (`call` still works), and the
+  watch's tests now run with the normal home as Home too.
+- Digits are Latin (0-9) in Arabic too unless Settings → Display picks Arabic-Indic, and the Language pill gives
+  the TV Arabic with Latin digits (the `nu-latn` locale extension), as the normal home's pill does.
+
+### Fixed
+- The key hints read in the screen's direction: in Arabic "OK" came last in «مواقيت اليوم والقبلة OK», as the
+  line starts with a Latin letter.
+
 ## [0.11] - 2026-10-26
 
 ### Added

@@ -120,18 +120,6 @@
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
             android:screenOrientation="landscape" />
 
-        <!-- The call to prayer, opened by the remote buttons service. Its own task, so closing it returns to
-             whatever app was playing rather than to Home. -->
-        <activity
-            android:name=".NowActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleInstance"
-            android:taskAffinity="tv.afnon.home.call"
-            android:theme="@style/Theme.Afnon.Call"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape" />
-
         <!-- Listening to the radio with the screen off. -->
         <activity
             android:name=".ScreenOffActivity"

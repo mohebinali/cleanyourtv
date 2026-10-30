@@ -109,15 +109,12 @@ public class SettingsActivity extends Screen {
     private FrameLayout chooser;
     /** What Back in the open chooser goes back to (the city list returns to the countries); null closes it. */
     private Runnable chooserBack;
-    /** The voice being previewed in the adhan list. */
-    private android.media.MediaPlayer previewPlayer;
     private PrayerDay day;
 
     @Override
     void build() {
         // A rebuild (back with settings changed elsewhere, or a language change) drops an open chooser with the
         // old root; left set, it would swallow every key while nothing shows.
-        stopPreview();
         chooser = null;
         chooserBack = null;
         editing = null;
@@ -315,21 +312,7 @@ public class SettingsActivity extends Screen {
                     String help() { return t.announceHelp(); }
                     boolean on() { return Prefs.announce(c); }
                     void set(boolean on) { Prefs.setAnnounce(c, on); }
-                },
-                new Row(SEG) {
-                    final int[] minutes = {0, 1, 5, 10};
-                    String label() { return t.callCloseRow(); }
-                    String help() { return t.callCloseHelp(); }
-                    String[] segs() { return digits(t.callCloseChoices()); }
-                    int selected() {
-                        int m = Prefs.callCloseMinutes(c);
-                        for (int i = 0; i < minutes.length; i++) if (minutes[i] == m) return i;
-                        return minutes.length - 1;
-                    }
-                    void select(int i) { Prefs.setCallCloseMinutes(c, minutes[i]); }
-                },
-                voiceRow(false),
-                voiceRow(true));
+                });
             case RADIO: return Arrays.asList(
                 new Row(TOGGLE) {
                     String label() { return t.station(Radio.station(c)); }
@@ -404,38 +387,6 @@ public class SettingsActivity extends Screen {
                     void open() { startSafely(new Intent(Settings.ACTION_SETTINGS)); }
                 });
         }
-    }
-
-    /** The adhan recording for every prayer but Fajr, or for Fajr: a list that plays each voice as focus reaches it. */
-    private Row voiceRow(boolean fajr) {
-        return new Row(VALUE) {
-            String label() { return fajr ? t.fajrVoiceRow() : t.voiceRow(); }
-            String help() { return fajr ? t.fajrVoiceHelp() : t.voiceHelp(); }
-            String value() { return Adhans.name(t, Prefs.voice(SettingsActivity.this, fajr)); }
-            void open() {
-                String[] names = new String[Adhans.VOICES.length];
-                for (int i = 0; i < names.length; i++) names[i] = Adhans.name(t, Adhans.VOICES[i][0]);
-                openChooser(label(), names, Adhans.index(Prefs.voice(SettingsActivity.this, fajr)),
-                    i -> { Prefs.setVoice(SettingsActivity.this, fajr, Adhans.VOICES[i][0]); showSaved(); },
-                    i -> preview(Adhans.VOICES[i][0]));
-            }
-        };
-    }
-
-    private void preview(String id) {
-        Adhans.stop(previewPlayer);
-        previewPlayer = Adhans.play(this, id);
-    }
-
-    private void stopPreview() {
-        Adhans.stop(previewPlayer);
-        previewPlayer = null;
-    }
-
-    @Override
-    protected void onPause() {
-        stopPreview();
-        super.onPause();
     }
 
     private String[] digits(String[] s) {
@@ -797,7 +748,7 @@ public class SettingsActivity extends Screen {
         openChooser(title, items, selected, pick, null);
     }
 
-    /** onFocus, if given, hears each item as focus reaches it (the adhan list plays that voice). */
+    /** onFocus, if given, hears each item as focus reaches it. */
     private void openChooser(String title, String[] items, int selected, IntConsumer pick, IntConsumer onFocus) {
         chooser = new FrameLayout(this);
         chooser.setBackgroundColor(Tokens.SCRIM_MENU);
@@ -871,7 +822,6 @@ public class SettingsActivity extends Screen {
     }
 
     private void closeChooser() {
-        stopPreview();
         root.removeView(chooser);
         chooser = null;
         chooserBack = null;
