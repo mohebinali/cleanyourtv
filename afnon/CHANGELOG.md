@@ -4,6 +4,15 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.17] - 2026-10-30
+
+### Added
+- Home again when an AirPlay phone disconnects. The AirPlay receiver (io.github.jqssun.airplay) stays on its
+  "Waiting for connection..." screen when the phone goes; while that screen is in front, the remote buttons service
+  reads its status line every 1.5 s, and once a phone has been on it ("1 connected", or its picture filling the
+  screen), "0 connected" sends the TV Home. Opened by hand with no phone, it is left alone; the receiver keeps
+  listening in the background. This adds canRetrieveWindowContent to the service, used for that screen only.
+
 ## [0.16] - 2026-10-30
 
 ### Changed

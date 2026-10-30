@@ -46,6 +46,8 @@ public class RemoteKeys extends AccessibilityService {
     /** The running watch, for Home's test hook; null while the service is off. */
     static PrayerWatch watch;
     private HomeTakeover takeover;
+    /** Home again when an AirPlay phone disconnects. */
+    private AirPlayReturn airplay;
 
     @Override
     protected void onServiceConnected() {
@@ -65,6 +67,8 @@ public class RemoteKeys extends AccessibilityService {
         if (takeover != null) takeover.stop();
         takeover = new HomeTakeover(this);
         takeover.start();
+        if (airplay != null) airplay.stop();
+        airplay = new AirPlayReturn(this);
     }
 
     @Override
@@ -73,6 +77,8 @@ public class RemoteKeys extends AccessibilityService {
         watch = null;
         if (takeover != null) takeover.stop();
         takeover = null;
+        if (airplay != null) airplay.stop();
+        airplay = null;
         super.onDestroy();
     }
 
@@ -156,6 +162,7 @@ public class RemoteKeys extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         Redirects.onWindowChanged(this, event);
         if (takeover != null) takeover.onWindowChanged(event);
+        if (airplay != null) airplay.onWindowChanged(event);
     }
 
     @Override
