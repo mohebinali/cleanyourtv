@@ -4,6 +4,17 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.20] - 2026-10-30
+
+### Fixed
+- A short AirPlay session (under about 6 s) still left the receiver's screen up: full-screen mirroring opens with a
+  size label ("1920x1080") for 5 s, which read as "no phone yet". The label, the "Exit fullscreen" button and the
+  debug overlay's "Senders: N" now count as a phone, and the first read comes 250 ms after the screen does.
+- No watch ran when the receiver was already in front as the service started (after an update or a restart): it
+  now looks once at start.
+- The reads run on a thread of their own, the whole screen in one request (Android 13+), so the remote's keys never
+  wait for them; a picture-in-picture window no longer counts as the app in front.
+
 ## [0.19] - 2026-10-30
 
 ### Fixed

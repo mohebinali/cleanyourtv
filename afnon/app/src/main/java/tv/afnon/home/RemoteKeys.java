@@ -67,8 +67,9 @@ public class RemoteKeys extends AccessibilityService {
         if (takeover != null) takeover.stop();
         takeover = new HomeTakeover(this);
         takeover.start();
-        if (airplay != null) airplay.stop();
+        if (airplay != null) airplay.quit();
         airplay = new AirPlayReturn(this);
+        airplay.checkFront();
     }
 
     @Override
@@ -77,7 +78,7 @@ public class RemoteKeys extends AccessibilityService {
         watch = null;
         if (takeover != null) takeover.stop();
         takeover = null;
-        if (airplay != null) airplay.stop();
+        if (airplay != null) airplay.quit();
         airplay = null;
         super.onDestroy();
     }
