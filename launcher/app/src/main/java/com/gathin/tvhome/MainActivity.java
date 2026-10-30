@@ -1487,9 +1487,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
+    /** Google TV Settings' voice action for "go to sleep" (DaydreamVoiceAction), which starts the screensaver. */
+    private static final String START_SCREENSAVER = "com.google.android.pano.action.SLEEP";
+
+    /**
+     * Home screen: Back (Return on the TV's remote) starts the screensaver at once, Google TV's Ambient mode with its
+     * photos, as the Assistant's "go to sleep" does. The screensaver keeps the key that wakes it, so waking it with
+     * Back comes back here without starting it again. With no such action on the TV, Back goes nowhere.
+     */
     @Override
     public void onBackPressed() {
-        // Home screen: Back goes nowhere.
+        try {
+            startActivity(new Intent(START_SCREENSAVER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            // Not Google TV: nothing answers it.
+        }
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
