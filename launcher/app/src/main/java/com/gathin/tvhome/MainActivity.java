@@ -2310,14 +2310,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int rootTop = spot[1];
         pillRow.getLocationInWindow(spot);
         float header = spot[1] - rootTop + pillRow.getHeight();
-        clockBlock.getLocationInWindow(spot);
-        header = Math.max(header, spot[1] - rootTop + clockBlock.getHeight());
+        // The clock, and the stats line and race panel under it when a theme turns them on.
+        for (View v : new View[]{clockBlock, stats, racePanel}) {
+            if (v == null || v.getVisibility() != View.VISIBLE) continue;
+            v.getLocationInWindow(spot);
+            header = Math.max(header, spot[1] - rootTop + v.getHeight());
+        }
         grid.getLocationInWindow(spot);
         float dock = spot[1] - rootTop + grid.getPaddingTop();
         // The dock's band reaches about 8dp above the grid's top padding (DockDecoration); keep 12dp clear of it.
         float bottom = dock - 20 * density;
-        // The app's name stands 40dp over the dock's tiles (showHero), its letters starting a little below its top.
-        if (hero.getVisibility() != View.GONE) bottom = Math.min(bottom, dock - 40 * density - hero.getHeight());
+        // The app's name stands 40dp over the dock's tiles (showHero), which start 14dp into the band: DockDecoration's
+        // 6dp and the item's 8dp padding.
+        if (hero.getVisibility() != View.GONE) bottom = Math.min(bottom, dock + 14 * density - 40 * density - hero.getHeight());
         float room = bottom - header, gap = 6 * density;
         boolean fits = week.getHeight() > 0 && week.getHeight() + 2 * gap <= room;
         week.setY(header + Math.max(gap, (room - week.getHeight()) / 2));
@@ -2962,8 +2967,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         for (String language : new String[]{Language.ENGLISH, Language.ARABIC}) {
             boolean current = language.equals(now);
             String name = getString(Language.ARABIC.equals(language) ? R.string.language_arabic : R.string.language_english);
+            // Arabic picked again on a TV that has it with Eastern digits (set before 3.2, or in Settings) puts it back
+            // with Western ones.
+            boolean redo = current && Language.ARABIC.equals(language) && !Language.westernDigits(this);
             addMenuRow(rows, popup, R.drawable.ic_language, name, current, () -> {
-                if (!current) Language.set(this, language);
+                if (!current || redo) Language.set(this, language);
             });
         }
         popup.showAsDropDown(btnLanguage, 0, (int) (6 * density));

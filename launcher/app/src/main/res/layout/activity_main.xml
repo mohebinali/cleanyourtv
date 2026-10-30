@@ -283,7 +283,8 @@
                             android:letterSpacing="0.14"
                             android:textAllCaps="true" />
 
-                        <!-- The Hijri date under it (Umm al-Qura, Hijri.today), in the same letters. -->
+                        <!-- The Hijri date under it (Umm al-Qura, Hijri.today), in the same letters, a little smaller and
+                             closer set: "29 JUMADA AL-AKHIRAH 1448 AH" must fit beside a long network name too. -->
                         <TextView
                             android:id="@+id/hijriDate"
                             android:gravity="left"
@@ -293,9 +294,9 @@
                             android:singleLine="true"
                             android:ellipsize="end"
                             android:textColor="#A6FFFFFF"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:fontFamily="@string/font_regular"
-                            android:letterSpacing="0.14"
+                            android:letterSpacing="0.08"
                             android:textAllCaps="true" />
                     </LinearLayout>
                 </LinearLayout>

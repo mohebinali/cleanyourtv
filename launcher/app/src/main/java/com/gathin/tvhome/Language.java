@@ -26,6 +26,12 @@ final class Language {
 
     private Language() { }
 
+    /** Whether this home's numbers are 0-9: English, or Arabic with the nu-latn extension the pill sets. */
+    static boolean westernDigits(Context c) {
+        Locale l = c.getResources().getConfiguration().getLocales().get(0);
+        return !ARABIC.equals(l.getLanguage()) || "latn".equals(l.getUnicodeLocaleType("nu"));
+    }
+
     /** The language this home is in now: Arabic, or English for any other. */
     static String current(Context c) {
         return ARABIC.equals(c.getResources().getConfiguration().getLocales().get(0).getLanguage()) ? ARABIC : ENGLISH;
