@@ -147,9 +147,8 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
-    <string name="theme_current">now</string>
-    <!-- The Language pill (Language.java) switches the TV between English, the first choice, and Arabic. The pill and
-         its menu name each language in that language, so those two names are not translated. -->
+    <!-- The Language pill (Language.java) shows the other language, English or Arabic, named in that language, and
+         switches the TV to it; so those two names are not translated. -->
     <string name="language">Language</string>
     <string name="language_english" translatable="false">English</string>
     <string name="language_arabic" translatable="false">العربية</string>

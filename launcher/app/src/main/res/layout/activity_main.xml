@@ -368,7 +368,7 @@
                 <TextView
                     android:id="@+id/btnLanguage"
                     style="@style/TopButton"
-                    android:text="@string/language_english"
+                    android:text="@string/language_arabic"
                     android:contentDescription="@string/language"
                     android:drawableStart="@drawable/ic_language"
                     android:nextFocusDown="@+id/grid" />

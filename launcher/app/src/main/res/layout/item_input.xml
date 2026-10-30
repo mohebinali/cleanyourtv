@@ -18,7 +18,7 @@
         android:duplicateParentState="true"
         android:contentDescription="@null" />
 
-    <!-- On the left, beside the icon, even for a name in a right-to-left script (the Language menu's العربية), which
+    <!-- On the left, beside the icon, even for a name in a right-to-left script (an input named in Arabic, say), which
          would otherwise sit at the row's far end: the app leaves RTL support off, so textDirection can't do it. -->
     <TextView
         android:id="@+id/title"

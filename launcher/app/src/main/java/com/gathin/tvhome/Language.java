@@ -11,7 +11,7 @@ import java.util.IllformedLocaleException;
 import java.util.Locale;
 
 /**
- * The TV's language, from the Language pill: English, the first choice, or Arabic.
+ * The TV's language, from the Language pill, which switches between English and Arabic in one press.
  *
  * With CHANGE_CONFIGURATION and the WRITE_SETTINGS app-op, both granted over adb, this sets the whole TV's languages
  * as Settings > System > Language does, the chosen one first and the other second: every app follows, the prayer
@@ -25,12 +25,6 @@ final class Language {
     static final String ENGLISH = "en", ARABIC = "ar";
 
     private Language() { }
-
-    /** Whether this home's numbers are 0-9: English, or Arabic with the nu-latn extension the pill sets. */
-    static boolean westernDigits(Context c) {
-        Locale l = c.getResources().getConfiguration().getLocales().get(0);
-        return !ARABIC.equals(l.getLanguage()) || "latn".equals(l.getUnicodeLocaleType("nu"));
-    }
 
     /** The language this home is in now: Arabic, or English for any other. */
     static String current(Context c) {

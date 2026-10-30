@@ -177,7 +177,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final int[] spot = new int[2];
     private View clockBlock;
     private View btnInputs;
-    /** The Language pill: the TV in English or Arabic (Language), named in the language it is in now. */
+    /** The Language pill: the other language, English or Arabic, named in its own script; pressed, the TV switches. */
     private TextView btnLanguage;
     /** Afnon, the prayer app: it brings HOME here and calls the prayers. Uninstall never offers it. */
     static final String AFNON = "tv.afnon.home";
@@ -627,9 +627,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
         btnLanguage = findViewById(R.id.btnLanguage);
+        // The other language, in its own script: one press switches the TV to it.
         btnLanguage.setText(Language.ARABIC.equals(Language.current(this))
-                ? R.string.language_arabic : R.string.language_english);
-        btnLanguage.setOnClickListener(v -> showLanguageMenu());
+                ? R.string.language_english : R.string.language_arabic);
+        btnLanguage.setOnClickListener(v -> switchLanguage());
         btnWifi.setOnClickListener(v -> openNetworkPill());
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
@@ -2955,49 +2956,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
-    /**
-     * The Language menu: English first, then Arabic, each named in its own language. Picking the other one switches
-     * the TV (Language.set), and Android recreates Home in it.
-     */
-    private void showLanguageMenu() {
-        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        LinearLayout rows = panel.findViewById(R.id.rows);
-        final PopupWindow popup = glassPopup(panel, Math.max(btnLanguage.getWidth(), (int) (190 * density)));
-        String now = Language.current(this);
-        for (String language : new String[]{Language.ENGLISH, Language.ARABIC}) {
-            boolean current = language.equals(now);
-            String name = getString(Language.ARABIC.equals(language) ? R.string.language_arabic : R.string.language_english);
-            // Arabic picked again on a TV that has it with Eastern digits (set before 3.2, or in Settings) puts it back
-            // with Western ones.
-            boolean redo = current && Language.ARABIC.equals(language) && !Language.westernDigits(this);
-            addMenuRow(rows, popup, R.drawable.ic_language, name, current, () -> {
-                if (!current || redo) Language.set(this, language);
-            });
-        }
-        popup.showAsDropDown(btnLanguage, 0, (int) (6 * density));
-    }
+    /** When the Language pill last switched, so a second press while Android changes the language is no switch back. */
+    private long languageSwitchAt;
 
     /**
-     * A row of the Language menu; the current choice is marked "now". The row's layout keeps the name beside the
-     * icon even when it is in the other language's script (item_input).
+     * The Language pill names the other language in its own script (العربية on an English TV, English on an Arabic
+     * one), and pressing it switches the whole TV to that language (Language.set); Android then recreates Home in it.
      */
-    private void addMenuRow(LinearLayout rows, final PopupWindow popup, int iconRes, String title,
-                            boolean current, final Runnable action) {
-        View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
-        TextView name = row.findViewById(R.id.title);
-        name.setText(title);
-        TextView status = row.findViewById(R.id.status);
-        View dot = row.findViewById(R.id.dot);
-        if (current) {
-            status.setText(R.string.theme_current);
-            dot.setVisibility(View.VISIBLE);
-        } else {
-            status.setVisibility(View.GONE);
-            dot.setVisibility(View.GONE);
-        }
-        row.setOnClickListener(v -> { popup.dismiss(); action.run(); });
-        rows.addView(row);
+    private void switchLanguage() {
+        long now = SystemClock.uptimeMillis();
+        if (now - languageSwitchAt < 3000) return;
+        languageSwitchAt = now;
+        Language.set(this, Language.ARABIC.equals(Language.current(this)) ? Language.ENGLISH : Language.ARABIC);
     }
 
     private PopupWindow glassPopup(View panel, int width) {
