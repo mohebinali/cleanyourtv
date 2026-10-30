@@ -4,6 +4,14 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.18] - 2026-10-30
+
+### Fixed
+- Home after an AirPlay disconnect did not come on the TV: the watch read whichever window held focus and ended at
+  the first read that was not the receiver's. It now reads the top app window (flagRetrieveInteractiveWindows),
+  every second, ends only after five reads in a row with another app in front, and logs what it sees under the
+  AirPlayReturn tag.
+
 ## [0.17] - 2026-10-30
 
 ### Added
