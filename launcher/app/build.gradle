@@ -7,14 +7,17 @@ android {
     compileSdk 34
 
     defaultConfig {
-        // Opt-in identity for firmware with a package-name HOME allowlist; see docs/devices/xiaomi-mitv-aetp0-dofus.md.
+        // Opt-in identity for firmware with a package-name HOME allowlist.
+        // Xiaomi: docs/devices/xiaomi-mitv-aetp0-dofus.md (com.ts.launcher).
+        // ColorOS TV: docs/devices/oppo-k9-55-oppocnm632.md (com.oneplus.tv.launcher2).
         applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
         minSdk 26
         targetSdk 34
-        versionCode 18
-        versionName '3.7'
-        // This fork's TVs run in English or Arabic. The other 23 translations stay in the source but not in the APK:
-        // they were 137 KB of its resources, room for the week's weather and the Arabic font under the 480 KB gate.
+        versionCode 19
+        versionName '3.8'
+        // This fork's TVs run in English or Arabic. The other 29 translations stay in the source but not in the APK:
+        // 23 of them were already 137 KB of its resources, room for the week's weather and the Arabic font under
+        // CI's APK size gate.
         resourceConfigurations += ['en', 'ar']
     }
 

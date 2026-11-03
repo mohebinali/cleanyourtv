@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One top_bar_apps button in Hebrew's right-to-left top bar: the round icon pill, its logo set from the app in
+     MainActivity. Mirrored like the pills around it (TopButtonIconMirrored), so its gap is on its right as theirs is. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/TopButtonIconMirrored"
+    android:nextFocusDown="@+id/grid" />
