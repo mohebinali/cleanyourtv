@@ -42,10 +42,9 @@
             </intent-filter>
         </activity>
 
-        <!-- The adb test hook (`--es test adhan`) counts only when Home is started through this alias, as in
-             `adb shell am start -n tv.afnon.home/.Test --es test adhan`. Only a holder of WRITE_SECURE_SETTINGS, the
-             adb shell, can start it, and with no intent-filter it adds nothing to what HOME resolves to. It must come
-             after MainActivity, its target. -->
+        <!-- The adb test hook (the extra test=adhan, README) counts only when Home is started through this alias,
+             tv.afnon.home/.Test. Only a holder of WRITE_SECURE_SETTINGS, the adb shell, can start it, and with no
+             intent-filter it adds nothing to what HOME resolves to. It must come after MainActivity, its target. -->
         <activity-alias
             android:name=".Test"
             android:targetActivity=".MainActivity"
