@@ -4,6 +4,15 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.22] - 2026-11-03
+
+### Fixed
+- AirPlay mirroring did nothing while the screensaver was on: the receiver opened its screen under the screensaver,
+  which stays on top of every app, so the phone's picture never showed until the screensaver was left by hand. When
+  the receiver's screen comes up under the screensaver, or with the Chromecast in standby, Afnon now wakes the TV
+  (WakeActivity, android:turnScreenOn, as an alarm clock does): the screensaver ends, or the TV switches on over
+  HDMI-CEC, and the mirrored picture is in front.
+
 ## [0.21] - 2026-11-03
 
 ### Fixed

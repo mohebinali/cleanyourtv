@@ -138,6 +138,18 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- Opened by AirPlayReturn when a phone's AirPlay comes in under the screensaver or in standby: Android wakes
+             the screen for it (turnScreenOn, as for an alarm clock) and it closes at once, leaving the receiver. -->
+        <activity
+            android:name=".WakeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            tools:targetApi="27" />
+
         <!-- The screensaver. Made the TV's own with:
              settings put secure screensaver_components tv.afnon.home/.AfnonDream -->
         <service

@@ -1,9 +1,16 @@
 package tv.afnon.home;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -21,6 +28,12 @@ import java.util.regex.Pattern;
  * its "Exit fullscreen" button, or no words at all), the status line going back to "0 connected" means the phone has
  * gone, and this presses Home as the remote's Home button would. Opened by hand with no phone on it, the screen says
  * "0 connected" from the start and is left alone. The receiver keeps listening, so the phone finds the TV next time.
+ *
+ * A phone that connects while the TV can't show the receiver gets the TV woken for it. Under the screensaver the
+ * receiver's screen opens beneath it, out of sight (the screensaver stays on top of every app), and in standby the
+ * TV is off: when the receiver's screen comes up then, WakeActivity wakes the TV, which ends the screensaver, or
+ * switches the TV on over HDMI-CEC, and the phone's picture is in front.
+ *
  * Only the receiver's own screen is read (the service's canRetrieveWindowContent, xml/remote_keys.xml), on a thread of
  * its own so the remote's keys never wait for it, and nothing read is kept.
  */
@@ -31,6 +44,8 @@ final class AirPlayReturn {
     private static final long FIRST_READ_MS = 250, POLL_MS = 1000;
     /** Reads in a row with another app in front before the watch ends: focus moving between windows is not leaving. */
     private static final int AWAY_POLLS = 5;
+    /** The receiver sends a window event or two as it opens: one wake for them. */
+    private static final long WAKE_AGAIN_MS = 5_000;
     /**
      * The receiver's words that tell a phone is on it (its strings: connected_count "%d connected", the debug
      * overlay's debug_clients "Senders: %d", waiting_for_playback, cd_exit_fullscreen), and the mirrored picture's
@@ -56,11 +71,27 @@ final class AirPlayReturn {
     private boolean anyText, playbackWait, mirror;
     /** The last read, so the log says what changed rather than every second. */
     private String lastRead = "";
+    /** The screensaver is up, from Android's broadcasts (delivered on the thread). */
+    private boolean dreaming;
+    private final BroadcastReceiver dreams = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            dreaming = Intent.ACTION_DREAMING_STARTED.equals(intent.getAction());
+        }
+    };
+    private long wokeAt = -WAKE_AGAIN_MS;
 
     AirPlayReturn(AccessibilityService service) {
         this.service = service;
         thread.start();
         handler = new Handler(thread.getLooper());
+        IntentFilter filter = new IntentFilter(Intent.ACTION_DREAMING_STARTED);
+        filter.addAction(Intent.ACTION_DREAMING_STOPPED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            service.registerReceiver(dreams, filter, null, handler, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            service.registerReceiver(dreams, filter, null, handler);
+        }
     }
 
     /** The service has just started: the receiver may already be in front, and no window event will come for it. */
@@ -70,18 +101,42 @@ final class AirPlayReturn {
         });
     }
 
-    /** A window came to the front: the receiver's starts the watch. */
+    /** A window came up: the receiver's starts the watch, and wakes the TV when it can't be seen. */
     void onWindowChanged(AccessibilityEvent e) {
         if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = e.getPackageName();
         if (pkg == null || !AIRPLAY.contentEquals(pkg)) return;
-        handler.post(this::begin);
+        handler.post(() -> {
+            wakeTv();
+            begin();
+        });
     }
 
     /** The service is going: the watch and its thread end. */
     void quit() {
+        try {
+            service.unregisterReceiver(dreams);
+        } catch (IllegalArgumentException ignored) {
+            // Already unregistered.
+        }
         handler.removeCallbacksAndMessages(null);
         thread.quitSafely();
+    }
+
+    /** The receiver's screen came up under the screensaver or in standby: WakeActivity wakes the TV for it. */
+    private void wakeTv() {
+        PowerManager pm = service.getSystemService(PowerManager.class);
+        boolean standby = pm != null && !pm.isInteractive();
+        long now = SystemClock.elapsedRealtime();
+        if ((!standby && !dreaming) || now - wokeAt < WAKE_AGAIN_MS) return;
+        wokeAt = now;
+        Log.i(TAG, "receiver opened " + (standby ? "in standby" : "under the screensaver") + ": waking the TV");
+        try {
+            service.startActivity(new Intent(service, WakeActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.w(TAG, "could not wake the TV", e);
+        }
     }
 
     private void begin() {
