@@ -3,6 +3,7 @@ package tv.afnon.home;
 import android.accessibilityservice.AccessibilityService;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -19,6 +20,8 @@ import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -61,9 +64,12 @@ final class TvPower {
     private static final long OWN_SLEEP_MS = 250;
     /** Screen-on and HDMI changes this soon after this app woke the Chromecast are that wake's own. */
     private static final long OWN_WAKE_MS = 6_000;
-    /** Focus moves are a remote's buttons only after the home this app opened has settled; two in this time. */
-    private static final long FOCUS_SETTLE_MS = 10_000, FOCUS_PAIR_MS = 5_000;
-    /** A wake that brings the TV on has made the Chromecast the active source by this much later. */
+    /**
+     * Focus moves are a remote's buttons only after the home this app opened has settled, not just after a window came
+     * up (a window gaining focus moves it too), and two of them in this time.
+     */
+    private static final long FOCUS_SETTLE_MS = 10_000, FOCUS_AFTER_WINDOW_MS = 1_000, FOCUS_PAIR_MS = 5_000;
+    /** The CEC state turning "active" this soon after this app woke the Chromecast: the wake switched the TV on. */
     private static final long TV_ON_CHECK_MS = 3_000;
     /** Wireless debugging is turned back on once Wi-Fi has connected: looked at this often, so many times. */
     private static final long ADB_POLL_MS = 5_000;
@@ -73,14 +79,17 @@ final class TvPower {
     /** The test hook's Wi-Fi off, and back on this much later. */
     private static final long TEST_WIFI_MS = 25_000;
     private static final String PREF_WIFI_OFF = "tv_wifi_off_here", PREF_ADB_WAS_ON = "tv_adb_was_on";
+    /** The TV off, kept for a restarted service or a reboot, where the Chromecast comes up awake with no screen-off. */
+    private static final String PREF_TV_OFF = "tv_off";
 
     private final AccessibilityService service;
     private final HandlerThread thread = new HandlerThread("tv-power");
     private final Handler handler;
     private final Runnable rewake = this::rewake;
-    private final Runnable tvOnCheck = this::tvOnCheck;
     private final Runnable adbBack = this::adbBack;
     private final Runnable dreamEnded = this::dreamEnded;
+    /** Told when the TV comes back on (AirPlayReturn looks for a receiver screen opened meanwhile). */
+    volatile Runnable onTvOn;
     // Everything below is touched on the thread only, but for ready, read by AirPlayReturn.
     /** The TV is off, as far as is known, and the Chromecast kept awake for it with Wi-Fi off. */
     private volatile boolean ready;
@@ -90,6 +99,8 @@ final class TvPower {
     private boolean dry;
     private boolean dreaming;
     private long rewokeAt = -OWN_WAKE_MS, hdmiGoneAt = -1, lastFocusAt = -FOCUS_PAIR_MS;
+    /** When a window last came up (its focus moves are not a remote's). */
+    private long windowAt = Long.MIN_VALUE / 2;
     /** When the CEC state last turned "inactive" (long ago where not seen). */
     private long inactiveAt = Long.MIN_VALUE / 2;
     private int adbPolls;
@@ -134,18 +145,33 @@ final class TvPower {
                 if (!tvShowsUs(service)) {
                     inactiveAt = SystemClock.elapsedRealtime();
                 } else if (ready) {
+                    if (SystemClock.elapsedRealtime() - rewokeAt < TV_ON_CHECK_MS) {
+                        // This app's wake sent One Touch Play (power_control_mode isn't none) and the TV came on.
+                        disabled = true;
+                        Log.w(TAG, "waking the Chromecast switched the TV on: not kept awake again");
+                    }
                     tvOn("the TV shows the Chromecast");
                 }
             }
         };
         service.getContentResolver().registerContentObserver(Settings.Global.getUriFor(CEC_STATE), false,
             cecObserver);
-        // Turned off here by a run that has ended (an update, a restart): what the TV is doing isn't known now, so
-        // Wi-Fi comes back, the Chromecast reachable rather than lost.
         handler.post(() -> {
-            if (prefs().getBoolean(PREF_WIFI_OFF, false)) {
-                Log.i(TAG, "service started with Wi-Fi turned off here: back on");
-                wifi(true);
+            dreaming = dreamUp(service);
+            // The TV was off when the last run ended (an update, a restart, a reboot) and still seems so: awake, as
+            // the Chromecast comes up, with no screen-off to go by, it is kept off Wi-Fi and AirPlay leaves the TV
+            // off. Otherwise Wi-Fi turned off here comes back, the Chromecast reachable rather than lost.
+            if (prefs().getBoolean(PREF_TV_OFF, false) && interactive() && !tvShowsUs(service)) {
+                Log.i(TAG, "service started with the TV off: kept off Wi-Fi");
+                ready = true;
+                rewokeAt = SystemClock.elapsedRealtime();
+                wifi(false);
+            } else {
+                setReady(false);
+                if (prefs().getBoolean(PREF_WIFI_OFF, false)) {
+                    Log.i(TAG, "service started with Wi-Fi turned off here: back on");
+                    wifi(true);
+                }
             }
         });
     }
@@ -170,12 +196,17 @@ final class TvPower {
         }
     }
 
-    /** A view took focus: a remote's buttons in use, so the TV is on. */
+    /** A window came up (its focus moving with it is not a remote's buttons). */
+    void onWindow() {
+        handler.post(() -> windowAt = SystemClock.elapsedRealtime());
+    }
+
+    /** A view took focus: a remote's buttons in use, so the TV is on. Under the screensaver, dreamEnded tells. */
     void onFocus() {
         handler.post(() -> {
-            if (!ready) return;
+            if (!ready || dreaming) return;
             long now = SystemClock.elapsedRealtime();
-            if (now - rewokeAt < FOCUS_SETTLE_MS) return;
+            if (now - rewokeAt < FOCUS_SETTLE_MS || now - windowAt < FOCUS_AFTER_WINDOW_MS) return;
             if (now - lastFocusAt < FOCUS_PAIR_MS) {
                 tvOn("a remote's buttons");
             } else {
@@ -204,8 +235,11 @@ final class TvPower {
         });
     }
 
-    /** The service is going: Wi-Fi turned off here comes back, so the Chromecast isn't left off the network. */
-    void quit() {
+    /**
+     * The service is going. Where it is stopping for good (turned off), Wi-Fi turned off here comes back, so the
+     * Chromecast isn't left off the network; where it is starting again, the new run decides.
+     */
+    void quit(boolean restoreWifi) {
         service.getContentResolver().unregisterContentObserver(cecObserver);
         try {
             service.unregisterReceiver(receiver);
@@ -213,9 +247,12 @@ final class TvPower {
             // Already unregistered.
         }
         handler.removeCallbacksAndMessages(null);
-        handler.post(() -> {
-            if (prefs().getBoolean(PREF_WIFI_OFF, false)) wifi(true);
-        });
+        if (restoreWifi) {
+            handler.post(() -> {
+                setReady(false);
+                if (prefs().getBoolean(PREF_WIFI_OFF, false)) wifi(true);
+            });
+        }
         thread.quitSafely();
     }
 
@@ -227,7 +264,6 @@ final class TvPower {
      */
     private void screenOff() {
         handler.removeCallbacks(rewake);
-        handler.removeCallbacks(tvOnCheck);
         if (tvShowsUs(service) || SystemClock.elapsedRealtime() - inactiveAt < OWN_SLEEP_MS) {
             Log.i(TAG, "Chromecast put to sleep with the TV on: left as it is");
             return;
@@ -237,7 +273,7 @@ final class TvPower {
             Log.i(TAG, "TV off: Wi-Fi off until the Chromecast wakes");
             return;
         }
-        ready = true;
+        setReady(true);
         Log.i(TAG, "TV off: Wi-Fi off, the Chromecast woken again to be ready");
         handler.postDelayed(rewake, dry ? DRY_REWAKE_MS : REWAKE_MS);
     }
@@ -254,15 +290,6 @@ final class TvPower {
         rewokeAt = SystemClock.elapsedRealtime();
         hdmiGoneAt = -1;
         wake();
-        handler.postDelayed(tvOnCheck, TV_ON_CHECK_MS);
-    }
-
-    /** tvOnCheck: the wake made the Chromecast the active source, so it sent One Touch Play and the TV came on. */
-    private void tvOnCheck() {
-        if (!ready || !tvShowsUs(service)) return;
-        disabled = true;
-        Log.w(TAG, "waking the Chromecast switched the TV on (power_control_mode isn't none): not kept awake again");
-        tvOn("the TV came on with the wake");
     }
 
     /** The screen came on: woken by something other than this app (the TV's power key, a remote), so the TV is on. */
@@ -273,10 +300,11 @@ final class TvPower {
 
     /**
      * The HDMI sound output unplugged and plugged back in, with the Chromecast awake: the TV powering up. Its going as
-     * the Chromecast falls asleep, and coming back as it is woken, are not that.
+     * the Chromecast falls asleep comes with the screen off; a wake only plugs it back in, and rewake forgets any
+     * going before it. So a TV turned straight back on after the wake is seen too.
      */
     private void hdmi(boolean plugged) {
-        if (!ready || !interactive() || SystemClock.elapsedRealtime() - rewokeAt < OWN_WAKE_MS) return;
+        if (!ready || !interactive()) return;
         if (!plugged) {
             hdmiGoneAt = SystemClock.elapsedRealtime();
         } else if (hdmiGoneAt >= 0) {
@@ -301,11 +329,41 @@ final class TvPower {
             }
             return;
         }
-        ready = false;
+        setReady(false);
         hdmiGoneAt = -1;
         Log.i(TAG, why + ": TV on, Wi-Fi back on");
         wifi(true);
         if (dreaming) wake();
+        Runnable told = onTvOn;
+        if (told != null) told.run();
+    }
+
+    /** ready, kept so a restarted service or a reboot with the TV still off knows it. */
+    private void setReady(boolean r) {
+        ready = r;
+        prefs().edit().putBoolean(PREF_TV_OFF, r).apply();
+    }
+
+    /**
+     * Whether the screensaver is up, for a service started under it (an update): the app in front is the screensaver's
+     * (Settings.Secure screensaver_components), read by its name only.
+     */
+    static boolean dreamUp(AccessibilityService s) {
+        PowerManager pm = s.getSystemService(PowerManager.class);
+        String dreams = Settings.Secure.getString(s.getContentResolver(), "screensaver_components");
+        if (pm == null || !pm.isInteractive() || dreams == null || dreams.isEmpty()) return false;
+        for (AccessibilityWindowInfo w : s.getWindows()) {
+            if (w.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
+            AccessibilityNodeInfo root = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? w.getRoot(0) : w.getRoot();
+            if (root == null || root.getPackageName() == null) return false;
+            for (String c : dreams.split(",")) {
+                ComponentName dream = ComponentName.unflattenFromString(c.trim());
+                if (dream != null && dream.getPackageName().contentEquals(root.getPackageName())) return true;
+            }
+            return false;
+        }
+        return false;
     }
 
     private void wake() {
@@ -331,11 +389,15 @@ final class TvPower {
             return;
         }
         if (!on) {
-            if (!wm.isWifiEnabled()) return;
+            // Still turning on counts as on (isWifiEnabled says no until it is up).
+            int state = wm.getWifiState();
+            if (state != WifiManager.WIFI_STATE_ENABLED && state != WifiManager.WIFI_STATE_ENABLING) return;
             boolean adbOn = Settings.Global.getInt(service.getContentResolver(), ADB_WIFI, 0) == 1;
-            if (wm.setWifiEnabled(false)) {
-                prefs.edit().putBoolean(PREF_WIFI_OFF, true).putBoolean(PREF_ADB_WAS_ON, adbOn).apply();
-            } else {
+            // Written before Wi-Fi goes, and to disk now: were the app to die in between, the next run must still
+            // know to turn it back on.
+            prefs.edit().putBoolean(PREF_WIFI_OFF, true).putBoolean(PREF_ADB_WAS_ON, adbOn).commit();
+            if (!wm.setWifiEnabled(false)) {
+                prefs.edit().putBoolean(PREF_WIFI_OFF, false).apply();
                 Log.w(TAG, "Wi-Fi could not be turned off");
             }
             return;
@@ -353,7 +415,10 @@ final class TvPower {
         }
     }
 
-    /** adbBack: wireless debugging on again once Wi-Fi has connected, as it was before Wi-Fi went off. */
+    /**
+     * adbBack: wireless debugging on again once Wi-Fi has connected, as it was before Wi-Fi went off. Once only: on a
+     * network Android doesn't trust it asks on the TV, every time it is asked to turn it on.
+     */
     @SuppressWarnings("deprecation")
     private void adbBack() {
         if (Settings.Global.getInt(service.getContentResolver(), ADB_WIFI, 0) == 1 || ++adbPolls > ADB_POLLS) {
@@ -362,16 +427,16 @@ final class TvPower {
         }
         WifiManager wm = service.getApplicationContext().getSystemService(WifiManager.class);
         WifiInfo info = wm == null ? null : wm.getConnectionInfo();
-        if (info != null && info.getSupplicantState() == SupplicantState.COMPLETED && info.getIpAddress() != 0) {
-            try {
-                Settings.Global.putInt(service.getContentResolver(), ADB_WIFI, 1);
-            } catch (SecurityException e) {
-                Log.i(TAG, "wireless debugging not turned back on: no WRITE_SECURE_SETTINGS");
-                prefs().edit().putBoolean(PREF_ADB_WAS_ON, false).apply();
-                return;
-            }
+        if (info == null || info.getSupplicantState() != SupplicantState.COMPLETED || info.getIpAddress() == 0) {
+            handler.postDelayed(adbBack, ADB_POLL_MS);
+            return;
         }
-        handler.postDelayed(adbBack, ADB_POLL_MS);
+        prefs().edit().putBoolean(PREF_ADB_WAS_ON, false).apply();
+        try {
+            Settings.Global.putInt(service.getContentResolver(), ADB_WIFI, 1);
+        } catch (SecurityException e) {
+            Log.i(TAG, "wireless debugging not turned back on: no WRITE_SECURE_SETTINGS");
+        }
     }
 
     private SharedPreferences prefs() {

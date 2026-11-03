@@ -94,7 +94,7 @@ final class AirPlayReturn {
     private static final long SHORT_MS = 10_000;
     /** HDMI-CEC's active source as the vendor's service reports it (TvPower.tvShowsUs). */
     private static final String CEC_STATE = "nrdp_video_platform_capabilities";
-    /** Prefs key: the boot (Settings.Global.BOOT_COUNT) in which the receiver's screen was left open; -1 once closed. */
+    /** Prefs key: the boot (Settings.Global.BOOT_COUNT) the receiver's screen was left open in; -1 once closed. */
     private static final String LEFT_BOOT = "airplay_left_boot";
     /** Google TV's "go to sleep" voice action, which starts the screensaver (as the normal home's Back does). */
     private static final String START_SCREENSAVER = "com.google.android.pano.action.SLEEP";
@@ -151,6 +151,8 @@ final class AirPlayReturn {
      */
     private boolean receiverLeft;
     private long wokeAt = -WAKE_AGAIN_MS, closingUntil, screenOnAt = -SETTLE_MS;
+    /** When this app last put the screensaver back (startScreensaver). */
+    private long putBackAt = -WAKE_AGAIN_MS;
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -214,11 +216,27 @@ final class AirPlayReturn {
             @Override
             public void onChange(boolean selfChange) {
                 handler.removeCallbacks(tvLeft);
-                if (!tvShowsUs()) handler.postDelayed(tvLeft, LEFT_MS);
+                // Only with the Chromecast awake: its own sleep turns the state "inactive" only after the screen has
+                // gone off, and a wake then (HDMI-CEC power_control_mode none) sends nothing to turn it back.
+                if (!tvShowsUs() && interactive()) handler.postDelayed(tvLeft, LEFT_MS);
             }
         };
         service.getContentResolver().registerContentObserver(Settings.Global.getUriFor(CEC_STATE), false,
             cecObserver);
+        // Started under the screensaver (an update): no DREAMING_STARTED will come for it.
+        handler.post(() -> dreaming = dreaming || TvPower.dreamUp(service));
+    }
+
+    /**
+     * The TV came back on with the Chromecast kept awake for it (TvPower), so no screen-on comes: a receiver screen
+     * opened meanwhile is watched as after a wake, so it gives way to the normal home.
+     */
+    void tvCameOn() {
+        handler.post(() -> {
+            screenOnAt = SystemClock.elapsedRealtime();
+            handler.removeCallbacks(afterWake);
+            handler.postDelayed(afterWake, AFTER_WAKE_MS);
+        });
     }
 
     /** The service has just started: the receiver may already be in front, and no window event will come for it. */
@@ -292,9 +310,11 @@ final class AirPlayReturn {
     private void screensaverStarted() {
         dreamPlayers = mediaPlayers(audio.getActivePlaybackConfigurations());
         wokeAt = -WAKE_AGAIN_MS;
-        if (watching && SystemClock.elapsedRealtime() - begunAt < WAKE_AGAIN_MS) {
-            // Opened just as the screensaver came up, so by a phone: the user's own opening resets its timer, and the
-            // one put back here comes only with nothing in front. Ended again, as a phone's session under it.
+        long now = SystemClock.elapsedRealtime();
+        if (watching && now - begunAt < WAKE_AGAIN_MS && now - putBackAt < WAKE_AGAIN_MS) {
+            // The screensaver put back here, and the receiver opened as it came up, so by a phone: the put-back
+            // comes only with nothing in front. Ended again, as a phone's session under it. (A screensaver the user
+            // starts is theirs; with a phone on it the receiver keeps the screen on, so the idle one can't start.)
             sawSender = true;
             fromScreensaver = true;
             wakeTv("receiver just opened");
@@ -595,6 +615,7 @@ final class AirPlayReturn {
 
     /** The screensaver again, as the normal home's Back starts it (TV Settings' "go to sleep" voice action). */
     private void startScreensaver() {
+        putBackAt = SystemClock.elapsedRealtime();
         try {
             service.startActivity(new Intent(START_SCREENSAVER).setPackage(TV_SETTINGS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

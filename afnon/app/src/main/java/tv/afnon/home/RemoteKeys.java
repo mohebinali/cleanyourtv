@@ -30,10 +30,11 @@ public class RemoteKeys extends AccessibilityService {
         if (takeover != null) takeover.stop();
         takeover = new HomeTakeover(this);
         takeover.start();
-        if (tvPower != null) tvPower.quit();
+        if (tvPower != null) tvPower.quit(false);
         tvPower = new TvPower(this);
         if (airplay != null) airplay.quit();
         airplay = new AirPlayReturn(this, tvPower);
+        tvPower.onTvOn = airplay::tvCameOn;
         airplay.checkFront();
     }
 
@@ -45,7 +46,7 @@ public class RemoteKeys extends AccessibilityService {
         takeover = null;
         if (airplay != null) airplay.quit();
         airplay = null;
-        if (tvPower != null) tvPower.quit();
+        if (tvPower != null) tvPower.quit(true);
         tvPower = null;
         super.onDestroy();
     }
@@ -55,6 +56,9 @@ public class RemoteKeys extends AccessibilityService {
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_FOCUSED) {
             if (tvPower != null) tvPower.onFocus();
             return;
+        }
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && tvPower != null) {
+            tvPower.onWindow();
         }
         if (takeover != null) takeover.onWindowChanged(event);
         if (airplay != null) airplay.onWindowChanged(event);

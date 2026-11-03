@@ -10,10 +10,10 @@ import android.os.Bundle;
  * The Prayer app's Home, which is only a door to the normal home. The app holds Android's Home role (set with
  * `cmd package set-home-activity`), which HomeTakeover needs before it acts; Google TV still sends Home to its own
  * launcher, so this opens only when something asks for this app's Home, and it goes straight on to the normal home.
- * From adb, through the .Test alias: `--es test adhan` puts up the prayer card for the next prayer 8 s later; `--es test
- * wifi` turns Wi-Fi off for 25 s and back on (TvPower, this app doing both, so adb over Wi-Fi comes back); `--es test
- * dry` has TvPower only log what it would do to Wi-Fi until the service restarts, and wake the Chromecast 8 s after the
- * TV goes off rather than 1.5 s.
+ * From adb, through the .Test alias: `--es test adhan` puts up the prayer card for the next prayer 8 s later;
+ * `--es test wifi` turns Wi-Fi off for 25 s and back on (TvPower, this app doing both, so adb over Wi-Fi comes back);
+ * `--es test dry` has TvPower only log what it would do to Wi-Fi until the service restarts, and wake the Chromecast
+ * 8 s after the TV goes off rather than 1.5 s.
  */
 public class MainActivity extends Activity {
     @Override

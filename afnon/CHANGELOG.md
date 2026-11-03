@@ -4,6 +4,30 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.30] - 2026-11-03
+
+### Fixed (review of 0.29)
+- The TV off is remembered (prefs "tv_off") for a restarted service or a reboot: the Chromecast comes up awake with no
+  screen-off to go by, and a phone's mirror would otherwise have switched the TV back on (its Home press sends One
+  Touch Play whatever power_control_mode is).
+- A TV turned straight back on after the Chromecast was woken is seen: its HDMI reset no longer falls in a 6 s window
+  kept for the wake's own (the wake only plugs HDMI back in, and rewake forgets anything before).
+- The "not kept awake again" safety engages: decided as the CEC state turns "active" within 3 s of the wake, where
+  the observer used to switch Wi-Fi back on first and the later check found nothing to do.
+- Wireless debugging is asked back once only: on a network Android doesn't trust it puts a prompt on the TV each
+  time (AdbDebuggingManager.verifyWifiNetwork), which the 5 s retries would have stacked.
+- Focus moving with a window that comes up (a window gaining focus moves it), or under the screensaver, is not taken
+  for a remote's buttons.
+- Wi-Fi still turning on counts as on when the TV goes off again; the note that Wi-Fi was turned off here is written
+  to disk before it goes, so a run that dies in between still turns it back on.
+- A receiver screen opened while the TV was off is watched when the TV comes back, as after a wake, so the TV comes on
+  to the normal home rather than "Waiting for connection...".
+- The screensaver is ended for a receiver that opened "just as it came up" only where this app put it back; one the
+  user starts with Back is theirs.
+- The 30 s wait for a TV left on another input starts only with the Chromecast awake: its own sleep turns the CEC
+  state "inactive" after the screen has gone off, and a wake then sends nothing to turn it back.
+- A service started under the screensaver (an update) knows it is up (the app in front is the screensaver's).
+
 ## [0.29] - 2026-11-03
 
 ### Added

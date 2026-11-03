@@ -11,8 +11,8 @@ android {
         minSdk 26
         // 28 (Android 9): the last for which an app may turn Wi-Fi off and on (TvPower).
         targetSdk 28
-        versionCode 32
-        versionName '0.29'
+        versionCode 33
+        versionName '0.30'
     }
 
     compileOptions {
