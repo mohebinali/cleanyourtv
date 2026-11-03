@@ -7,9 +7,10 @@ import android.view.accessibility.AccessibilityEvent;
  * The Prayer app's always-on part (its name is from when it also mapped remote buttons; the TV has it turned on by
  * this name). Android keeps an enabled accessibility service running whatever is on screen, so it hosts what has to
  * run all the time: {@link PrayerWatch}, the card when a prayer's time begins; {@link HomeTakeover}, which keeps Home
- * on the normal home where Google TV sends it to its own launcher; and {@link AirPlayReturn}, which wakes the TV for
- * an AirPlay phone and goes Home when the phone leaves. It filters no keys and reads no app's screen but the AirPlay
- * receiver's, and the app has no network access. Turned on with:
+ * on the normal home where Google TV sends it to its own launcher; and {@link AirPlayReturn}, which brings an AirPlay
+ * phone's picture to the TV (ending the screensaver, or switching the TV over from another input) and goes Home when
+ * the phone leaves. It filters no keys and reads no app's screen but the AirPlay receiver's, and the app has no
+ * network access. Turned on with:
  * settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys
  */
 public class RemoteKeys extends AccessibilityService {

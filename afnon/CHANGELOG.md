@@ -4,6 +4,46 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.27] - 2026-11-03
+
+### Added
+- A phone mirroring while the TV shows another input switches the TV to the Chromecast. HDMI-CEC's active source is
+  read from the vendor's report (Settings.Global nrdp_video_platform_capabilities, activeCecState "inactive" with
+  another input on). When the phone's picture first comes up on the receiver, a Home press sends One Touch Play
+  (<Text View On>, <Active Source>), as the remote's Home does, and the receiver is brought back over the home screen
+  Home puts up. Only the picture counts: the receiver's buttons for it ("Exit fullscreen", "Fullscreen"), or its size
+  label with no "Press start on the sender..." or "0 connected" beside it, since a receiver screen just opened shows
+  the label for any connection. A connection that doesn't mirror never switches the TV, and a TV moved to another
+  input later in a session is left there. Seen on the TV: the user's 14:45 mirror with the TV on HDMI 2
+  (<Routing Change> 3.0.0.0 to 2.0.0.0) left the TV there.
+- Needs the Chromecast awake while the TV shows another input:
+  `cmd hdmi_control cec_setting set power_state_change_on_active_source_lost none` (it was standby_now, standby 30 s
+  after the TV left it). With the TV on another input for 30 s and something playing, the pause key goes to it
+  (AudioManager.dispatchMediaKeyEvent, which needs no permission), and the normal home goes over it if it still
+  plays 2 s later, as that standby paused it.
+
+### Removed
+- Mirroring with the TV off no longer switches it on, as asked: with the Chromecast in standby nothing is done. A TV
+  turned on straight to another input leaves the Chromecast in standby too, which can't be told from a TV still off,
+  so mirroring then doesn't switch either, until the Chromecast's input has been shown once. A receiver screen still
+  up when the TV next comes on gives way to the normal home.
+
+### Changed
+- A phone leaving closes the receiver's screen for good (started over with FLAG_ACTIVITY_NO_HISTORY, which the home
+  going over it finishes) and opens the normal home straight, instead of pressing Home, whose One Touch Play switched
+  the TV back to the Chromecast, or switched it on, at the end of a session. The next phone then opens the receiver
+  afresh, which sends a window event even under the screensaver: an old screen brought back there sent none, and a
+  silent mirror plays no sound for 0.23's sound check to hear (the user's real mirrors started no audio). A receiver
+  screen left open otherwise (Back, Home, opened by hand) is closed the same way, out of sight, when the screensaver
+  next comes up.
+- A phone that connects while the receiver's screen is closing, its window event lost among the closing screen's, is
+  found by a look 2.3 s after the session ended, and watched.
+- A connection under 10 s that only ended the screensaver, with no picture, puts the screensaver back once the
+  receiver's screen has closed (after that look, so a phone connecting meanwhile isn't buried under it).
+- A new screensaver can be ended again at once: the 5 s limit on wakes covers only one opening's window events.
+- Whether the receiver is in front is told from the front window's root alone on Android 13 and later, so no other
+  app's screen is fetched.
+
 ## [0.26] - 2026-11-03
 
 ### Changed

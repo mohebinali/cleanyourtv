@@ -6,13 +6,15 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <!-- No permissions at all: the prayer times are worked out on the TV, the card is an accessibility overlay, and
-         the TV is woken for AirPlay through WakeActivity's turnScreenOn. No network, no microphone; the release build
-         fails any APK that asks for RECORD_AUDIO. -->
+         the screensaver is ended for AirPlay through WakeActivity's turnScreenOn. No network, no microphone; the
+         release build fails any APK that asks for RECORD_AUDIO. -->
 
     <!-- Android 11+ package visibility, for HomeTakeover. -->
     <queries>
         <!-- The normal home, which Home is kept on. -->
         <package android:name="com.gathin.tvhome" />
+        <!-- The AirPlay receiver, brought back to the front after the TV is switched to it (AirPlayReturn). -->
+        <package android:name="io.github.jqssun.airplay" />
         <!-- Which launcher the HOME key reaches, and that launcher's home screens. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -61,8 +63,8 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- Opened by AirPlayReturn when a phone's AirPlay comes in under the screensaver or in standby: Android wakes
-             the screen for it (turnScreenOn, as for an alarm clock) and it closes at once, leaving the receiver. -->
+        <!-- Opened by AirPlayReturn when a phone's AirPlay comes in under the screensaver: Android wakes the screen
+             for it (turnScreenOn, as for an alarm clock), ending the screensaver, and it closes at once. -->
         <activity
             android:name=".WakeActivity"
             android:exported="false"

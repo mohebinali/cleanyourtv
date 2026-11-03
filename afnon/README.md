@@ -16,9 +16,14 @@ updates in place.
 - **Home stays on the normal home.** Google TV sends Home to its own launcher whatever the default is, and that
   launcher can't be disabled safely (the setup wizard and Cast depend on it). The service opens the normal home over
   it whenever it comes up: on a Home press, and as soon as the TV comes on (`HomeTakeover.java`).
-- **AirPlay.** A phone that mirrors while the screensaver is on, or with the TV in standby, gets the TV woken for it
-  (switched on over HDMI-CEC from standby), so its picture shows; when the phone disconnects, the TV goes back to
-  Home (`AirPlayReturn.java`, for the [AirPlay receiver](https://github.com/jqssun/android-airplay-server)).
+- **AirPlay.** A phone that mirrors while the TV shows another input switches the TV to the Chromecast once its
+  picture comes up (HDMI-CEC One Touch Play, as the remote's Home button sends); one that mirrors under the
+  screensaver ends it; with the Chromecast in standby (the TV off) nothing happens and the TV stays off. When the
+  phone disconnects, the receiver's screen closes and the TV goes back to Home (`AirPlayReturn.java`, for the
+  [AirPlay receiver](https://github.com/jqssun/android-airplay-server)). Only a mirrored picture switches the TV, not
+  a phone that merely connects. A TV turned on straight to another input leaves the Chromecast in standby, which the
+  app can't tell from a TV that is off: mirroring switches it again once the Chromecast's input has been shown. With
+  the TV left on another input for 30 s, whatever plays on the Chromecast is paused.
 
 All of it runs in one accessibility service, `RemoteKeys` (its old name, which the TV has turned on), because Android
 keeps an enabled accessibility service running whatever is on screen.
@@ -26,7 +31,9 @@ keeps an enabled accessibility service running whatever is on screen.
 ## Privacy
 
 No network access, no microphone, no permissions at all. The service reads no app's screen except the AirPlay
-receiver's (for "1 connected" / "0 connected"), and, as the screen comes on, which app is in front (its name only).
+receiver's (for "1 connected" / "0 connected"), and which app is in front (its name only).
+It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
+shows the Chromecast).
 To tell when a phone starts mirroring under the screensaver it notices that media sound has started playing; Android
 tells any app which kinds of sound are playing, not whose, and nothing is recorded. Nothing read is kept.
 
@@ -44,6 +51,9 @@ adb install -r afnon.apk
 adb shell cmd package set-home-activity tv.afnon.home/.MainActivity
 adb shell settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys
 adb shell settings put secure accessibility_enabled 1
+# Stay awake while the TV shows another input, so a phone's AirPlay can switch the TV over. Google TV's default,
+# standby_now, sleeps 30 s after the TV leaves the Chromecast (the app pauses what plays then instead).
+adb shell cmd hdmi_control cec_setting set power_state_change_on_active_source_lost none
 ```
 
 The Home role is what lets the service act; this app's Home itself only passes on to the normal home.
@@ -65,7 +75,7 @@ The card for the next prayer comes up 8 s later, time to open another app first.
 | `PrayerWatch.java`, `SideArchView.java` | The prayer card and its arch |
 | `PrayerDay.java`, `Text.java` | The prayer times, and the card's words in Arabic or English |
 | `HomeTakeover.java`, `ProbeActivity.java`, `MainActivity.java` | Home kept on the normal home |
-| `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: the TV woken for a phone, Home again when it leaves |
+| `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: a phone's picture brought to the TV, Home again when it leaves |
 
 ## Licence
 

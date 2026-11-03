@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">Prayer</string>
     <string name="remote_keys">Prayer service</string>
-    <string name="remote_keys_description">Shows the prayer card when a prayer\'s time begins, keeps Home on the normal home, wakes the TV for an AirPlay phone and goes back to Home when it disconnects. For that it reads the AirPlay receiver\'s screen and, as the screen comes on, which app is in front; nothing else.</string>
+    <string name="remote_keys_description">Shows the prayer card when a prayer\'s time begins, keeps Home on the normal home, brings an AirPlay phone\'s picture to the TV and goes back to Home when it disconnects. For that it reads the AirPlay receiver\'s screen, which app is in front, whether the TV shows this input and which kinds of sound play; nothing is kept.</string>
 </resources>
