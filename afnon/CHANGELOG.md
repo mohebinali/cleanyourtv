@@ -4,6 +4,24 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.28] - 2026-11-03
+
+### Fixed
+- A TV turned off and straight back on no longer has what is then put on paused and sent home. A TV that wakes the
+  Chromecast itself (turned on with its own remote, it sends HDMI-CEC's power key; seen 17:22:23) shows it without
+  making it the active source, so HDMI-CEC still says "inactive", and the 30 s wait for a TV left on another input,
+  begun as the TV went off, ran on. Standby (ACTION_SCREEN_OFF) now ends that wait.
+
+### Notes
+- Until the next Home press after such a wake, HDMI-CEC says "inactive" with the TV on the Chromecast, so the first
+  phone to mirror then gets one Home press too many (the picture goes small over the home for under a second). Taking
+  "inactive" as stale instead would leave a TV moved to another input afterwards, which changes nothing in the state,
+  never switched back for a phone.
+- The wait itself, about 7 s from the Samsung turning on to the Chromecast's picture, is the TV's: it asks the sleeping
+  Chromecast for its details, sends a Samsung-only command, which the Chromecast refuses, and sends the standard power
+  key only about 5 s later (17:22:16 to 17:22:23); the picture was up 1 s after that. Nothing on the Chromecast can see
+  the TV turning on before then.
+
 ## [0.27] - 2026-11-03
 
 ### Added

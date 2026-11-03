@@ -161,6 +161,14 @@ final class AirPlayReturn {
                 handler.postDelayed(afterWake, AFTER_WAKE_MS);
                 return;
             }
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                // Standby (the TV turned off): the wait for a TV left on another input is over. A TV turned straight
+                // back on wakes the Chromecast with HDMI-CEC still saying "inactive", so that wait running on would
+                // pause whatever is then put on.
+                handler.removeCallbacks(tvLeft);
+                handler.removeCallbacks(stillPlaying);
+                return;
+            }
             dreaming = Intent.ACTION_DREAMING_STARTED.equals(action);
             handler.removeCallbacks(soundCheck);
             if (dreaming) screensaverStarted();
@@ -190,6 +198,7 @@ final class AirPlayReturn {
         IntentFilter filter = new IntentFilter(Intent.ACTION_DREAMING_STARTED);
         filter.addAction(Intent.ACTION_DREAMING_STOPPED);
         filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             service.registerReceiver(screen, filter, null, handler, Context.RECEIVER_NOT_EXPORTED);
         } else {
@@ -297,7 +306,11 @@ final class AirPlayReturn {
 
     /**
      * Whether the TV shows the Chromecast, from HDMI-CEC as the vendor's service reports it (CEC_STATE). True where
-     * that isn't known, so nothing is switched on a guess.
+     * that isn't known, so nothing is switched on a guess. "inactive" can be out of date: a TV that wakes the
+     * Chromecast itself (turned on with its own remote, it sends the power key) shows it without making it the active
+     * source, so the state stays "inactive" until the next Home press. A switch then is one Home press too many, with
+     * the TV already here; taken as showing the Chromecast instead, a TV moved to another input afterwards, which
+     * changes nothing in the state, would never be switched back for a phone.
      */
     private boolean tvShowsUs() {
         try {
