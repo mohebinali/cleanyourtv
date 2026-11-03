@@ -17,6 +17,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -51,6 +52,7 @@ import java.util.Set;
  * the broadcasts, registered on it.
  */
 final class HomeTakeover {
+    private static final String TAG = "HomeTakeover";
 
     /** The normal home, which Home is kept on. */
     static final String NORMAL_HOME = "com.gathin.tvhome";
@@ -88,9 +90,12 @@ final class HomeTakeover {
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable openLater = this::openIfUnanswered;
-    private final Runnable lookAtFront = this::openOverStockFront;
-    /** The windows come back a moment after the screen: the app in front is read at these times after it comes on. */
-    private static final long[] SCREEN_ON_LOOKS_MS = {0, 300, 1000};
+    private final Runnable lookAtFront = () -> openOverStockFront("screen on");
+    /**
+     * The windows come back a moment after the screen: the app in front is read at these times after it comes on,
+     * often at first, so the stock home is covered as soon as it can be seen to be in front.
+     */
+    private static final long[] SCREEN_ON_LOOKS_MS = {0, 100, 200, 300, 500, 1000};
     /** Android's broadcast for the screen coming on. */
     private final BroadcastReceiver screenOnReceiver = new BroadcastReceiver() {
         @Override
@@ -174,13 +179,14 @@ final class HomeTakeover {
 
     /**
      * The service has just started (boot, or a restart): the stock home may already be in front, with no window event
-     * for it. With the screen on, the app in front is read and the normal home opens over the stock home; with it off,
-     * the screen coming on does that. Only where the window list can't be read is the old probe used.
+     * for it. The app in front is read and the normal home opens over the stock home, with the screen off too, so the
+     * TV comes on to the normal home; where the screen is off and the window list can't be read yet, the screen
+     * coming on does it. Only with the screen on and no window list is the old probe used.
      */
     private void atStart() {
         PowerManager pm = service.getSystemService(PowerManager.class);
-        if (pm != null && !pm.isInteractive()) return;
-        if (!openOverStockFront()) probeAtBoot();
+        boolean asleep = pm != null && !pm.isInteractive();
+        if (!openOverStockFront("service started" + (asleep ? " in standby" : "")) && !asleep) probeAtBoot();
     }
 
     /**
@@ -188,7 +194,7 @@ final class HomeTakeover {
      * unless it is showing voice search results or the normal home opened a moment ago. False when the window list
      * could not be read.
      */
-    private boolean openOverStockFront() {
+    private boolean openOverStockFront(String why) {
         long now = SystemClock.elapsedRealtime();
         if (now - resolvedAt >= RESOLVE_MS) resolve(now);
         if (stockHome.isEmpty() || assistantResults) return true;
@@ -201,7 +207,10 @@ final class HomeTakeover {
             AccessibilityNodeInfo root = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ? w.getRoot(0) : w.getRoot();
             if (root == null || root.getPackageName() == null) return false;
-            if (root.getPackageName().toString().equals(stockPackage) && now - openedAt >= SAME_PRESS_MS) open();
+            if (root.getPackageName().toString().equals(stockPackage) && now - openedAt >= SAME_PRESS_MS) {
+                Log.i(TAG, why + ": stock home in front, normal home over it");
+                open();
+            }
             return true;
         }
         return false;

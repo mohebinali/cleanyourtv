@@ -4,6 +4,15 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.25] - 2026-11-03
+
+### Changed
+- The TV coming on shows the stock home for less time. The service starting with the screen off (a boot with the TV
+  off) reads the app in front then and covers the stock home before the TV comes on; after the screen comes on, the
+  app in front is read at 0, 100, 200, 300, 500 and 1000 ms instead of 0, 300 and 1000. Measured on the Chromecast
+  with 0.24: 0.7 s of the stock home after a wake (1.3 s with 0.22, 3.6 s before 0.21).
+- HomeTakeover logs each takeover it makes from the app in front (`adb logcat -s HomeTakeover`).
+
 ## [0.24] - 2026-11-03
 
 The Prayer app is cut down to the prayer times and the card, as asked: everything to do with sound and every screen
