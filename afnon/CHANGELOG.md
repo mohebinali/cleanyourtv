@@ -4,6 +4,16 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.26] - 2026-11-03
+
+### Changed
+- With the screen off, any full screen of the stock launcher's own counts as its home. At boot Google TV's launcher
+  puts up its dispatcher (coreservices.bootmode.DispatchActivity) while the TV is still off and hands on to its home
+  as the TV comes on; the normal home now goes over it then, so the TV comes on to the normal home. Window events do
+  reach the service with the screen off (checked: the stock home brought up in standby was covered 0.7 s later).
+  The window list can't be read with the screen off, and after a wake it is readable only about 0.6 s later, which
+  is what 0.25's looks at screen-on are bound by. Each such takeover is logged too.
+
 ## [0.25] - 2026-11-03
 
 ### Changed

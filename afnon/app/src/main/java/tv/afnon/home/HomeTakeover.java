@@ -41,6 +41,10 @@ import java.util.Set;
  * "homekey", whatever remote sent it, the phone app's included; a press the stock home's window event has already
  * answered opens nothing more.
  *
+ * With the screen off, any full screen of the stock launcher's own counts as its home: at boot it puts up a dispatcher
+ * while the TV is still off, which hands on to its home as the TV comes on, so the normal home goes over it before the
+ * TV shows it.
+ *
  * The screen coming on is looked at too. A Chromecast that starts or wakes with the stock home in front sends no window
  * event for it when the TV comes on, so the app in front is read then (the top window's app name, nothing on it) and
  * the normal home opens over the stock home at once: as soon as the display reports it is on, which comes well before
@@ -184,8 +188,7 @@ final class HomeTakeover {
      * coming on does it. Only with the screen on and no window list is the old probe used.
      */
     private void atStart() {
-        PowerManager pm = service.getSystemService(PowerManager.class);
-        boolean asleep = pm != null && !pm.isInteractive();
+        boolean asleep = !interactive();
         if (!openOverStockFront("service started" + (asleep ? " in standby" : "")) && !asleep) probeAtBoot();
     }
 
@@ -245,7 +248,10 @@ final class HomeTakeover {
         }
         if (now - resolvedAt >= RESOLVE_MS) resolve(now);
         boolean stockApp = pkg.toString().equals(stockPackage);
-        if (!stockApp || !stockHome.contains(cls.toString())) {
+        // With the screen off, any full screen of the stock launcher's is what the TV will come on to (at boot, its
+        // dispatcher): it counts as the stock home, and is covered before the TV shows it.
+        boolean stockScreen = stockApp && (stockHome.contains(cls.toString()) || (e.isFullScreen() && !interactive()));
+        if (!stockScreen) {
             // Not the banner or a dialog, nor another screen of the stock launcher's own.
             if (e.isFullScreen() && !stockApp) {
                 coveredAt = now;
@@ -263,6 +269,7 @@ final class HomeTakeover {
             return;
         }
         if (coveredAt < openedAt && now - openedAt < SAME_PRESS_MS) return;
+        Log.i(TAG, cls + (interactive() ? "" : ", screen off") + ": normal home over it");
         open();
     }
 
@@ -328,6 +335,11 @@ final class HomeTakeover {
             stockHome.add(ri.activityInfo.name);
         }
         if (!stockHome.isEmpty()) stockPackage = pkg;
+    }
+
+    private boolean interactive() {
+        PowerManager pm = service.getSystemService(PowerManager.class);
+        return pm == null || pm.isInteractive();
     }
 
     /** The Home role is where `set-home-activity`, or the TV's own Home picker, records the choice. */
