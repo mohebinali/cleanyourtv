@@ -5,131 +5,55 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Quran Radio: the stream, keeping the CPU and Wi-Fi awake under the screensaver, and the TV's sleep timer
-         (WRITE_SECURE_SETTINGS, granted with pm grant at install), which is off only while the radio plays. No
-         RECORD_AUDIO: Afnon never asks for the microphone, and the release build fails any APK that does. -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
-    <!-- Reading the Wi-Fi network name needs location on Android 9+. Granted with pm grant at install,
-         never requested at runtime. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-        tools:ignore="CoarseFineLocation" />
-    <!-- Uninstall in an app's hold-OK menu (AppMenu) opens Android's own confirmation, which Android 9+ shows only
-         to apps that hold this. A normal permission, granted at install; Afnon never removes an app itself. -->
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-    <!-- The Language pill switches the whole TV between English and Arabic, as Settings > System > Language does
-         (Language.java). Both are granted over adb (tools/install.sh); without them the pill switches Afnon alone. -->
-    <uses-permission android:name="android.permission.CHANGE_CONFIGURATION"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.WRITE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
+    <!-- No permissions at all: the prayer times are worked out on the TV, the card is an accessibility overlay, and
+         the TV is woken for AirPlay through WakeActivity's turnScreenOn. No network, no microphone; the release build
+         fails any APK that asks for RECORD_AUDIO. -->
 
-    <!-- Android 11+ package visibility, so the app tiles can resolve the apps they launch. -->
+    <!-- Android 11+ package visibility, for HomeTakeover. -->
     <queries>
-        <!-- The normal home, offered by the Theme pill. -->
+        <!-- The normal home, which Home is kept on. -->
         <package android:name="com.gathin.tvhome" />
-        <!-- HomeTakeover: which launcher the HOME key reaches, and that launcher's home screens. -->
+        <!-- Which launcher the HOME key reaches, and that launcher's home screens. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />
-        </intent>
-        <!-- CVTE firmwares answer the remote's buttons in this service; FirmwareKeys then leaves keys alone. -->
-        <intent>
-            <action android:name="android.intent.action.HOTKEYSERVICE" />
-        </intent>
-        <!-- CVTE's source menu, which Home opens for the Source button (FirmwareKeys.sourceMenu). -->
-        <package android:name="com.cvte.tv.globalui" />
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent>
-        <!-- TCL's Audio Only panel service (ScreenOffActivity), in com.android.tv.settings or com.tcl.settings. -->
-        <intent>
-            <action android:name="com.tcl.settings.SHOW_WINDOW" />
         </intent>
     </queries>
 
     <application
         android:label="@string/app_name"
         android:icon="@drawable/ic_arch"
-        android:banner="@drawable/banner"
-        android:theme="@style/Theme.Afnon"
         android:supportsRtl="true"
-        android:networkSecurityConfig="@xml/network_security"
         android:allowBackup="false">
 
+        <!-- Home, so that the app can hold the Home role HomeTakeover needs; it goes straight on to the normal home. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
-            android:clearTaskOnLaunch="true"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape">
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
         </activity>
 
-        <!-- The adb test hooks (test, station, locale, digits) count only when Home is started through this alias,
-             as in `adb shell am start -n tv.afnon.home/.Test` (README). Only a holder of WRITE_SECURE_SETTINGS, the
-             adb shell, can start it, and with no intent-filter it adds nothing to what HOME or the app list
-             resolve to. It must come after MainActivity, its target. -->
+        <!-- The adb test hook (`--es test adhan`) counts only when Home is started through this alias, as in
+             `adb shell am start -n tv.afnon.home/.Test --es test adhan`. Only a holder of WRITE_SECURE_SETTINGS, the
+             adb shell, can start it, and with no intent-filter it adds nothing to what HOME resolves to. It must come
+             after MainActivity, its target. -->
         <activity-alias
             android:name=".Test"
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS" />
 
-        <activity
-            android:name=".AllAppsActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape" />
-
-        <activity
-            android:name=".PrayerDayActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape" />
-
-        <!-- Also the remote's Settings button, from any app: its own task, so Back returns to what was playing. -->
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask"
-            android:taskAffinity="tv.afnon.home.settings"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape" />
-
-        <!-- Listening to the radio with the screen off. -->
-        <activity
-            android:name=".ScreenOffActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection"
-            android:screenOrientation="landscape" />
-
-        <!-- Opened once at boot by HomeTakeover and closed at once, so whatever is behind it sends a window event. -->
+        <!-- Opened once at boot by HomeTakeover when the window list can't be read, and closed at once, so whatever is
+             behind it sends a window event. -->
         <activity
             android:name=".ProbeActivity"
             android:exported="false"
@@ -150,20 +74,7 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:targetApi="27" />
 
-        <!-- The screensaver. Made the TV's own with:
-             settings put secure screensaver_components tv.afnon.home/.AfnonDream -->
-        <service
-            android:name=".AfnonDream"
-            android:label="@string/app_name"
-            android:exported="true"
-            android:permission="android.permission.BIND_DREAM_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.dreams.DreamService" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </service>
-
-        <!-- Remote buttons. Turned on with:
+        <!-- The always-on service: the prayer card, Home over the stock launcher, and AirPlay. Turned on with:
              settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys -->
         <service
             android:name=".RemoteKeys"

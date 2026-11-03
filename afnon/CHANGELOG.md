@@ -1,8 +1,35 @@
 # Changelog
 
-All notable changes to Afnon. Versions match `versionName` in `app/build.gradle` and the `vX.Y` git tags.
+All notable changes to the Prayer app (Afnon before 0.24). Versions match `versionName` in `app/build.gradle`.
 
 ## [Unreleased]
+
+## [0.24] - 2026-11-03
+
+The Prayer app is cut down to the prayer times and the card, as asked: everything to do with sound and every screen
+of its own is gone.
+
+### Removed
+- All audio: the adhan recordings (and CI's step that fetched them), the Quran radio, the spoken reminders and
+  announcements, and their settings.
+- The app's own screens: its home screen (the courtyard), Today & Qibla, All apps, Settings, the screen-off radio
+  screen and its screensaver. It no longer appears in the app list.
+- The reminder banner before each prayer, the remote button mapping (TCL and CVTE keys, app buttons), app redirects,
+  its weather, and its Language pill (the normal home's Language pill switches the TV).
+- Every permission: no network, no location, no settings writes. The prayer times are worked out on the TV, the card
+  is an accessibility overlay, and the AirPlay wake needs none.
+
+### Kept
+- The prayer card: the mihrab on its side sliding in from the start edge for a minute when a prayer's time begins,
+  silent, in the TV's language. Prayer times for Dammam, Umm al-Qura, standard Asr, fixed in `PrayerDay.java`.
+- Home kept on the normal home, and AirPlay: the TV woken for a phone, Home again when it leaves.
+
+### Changed
+- Home over the stock launcher opens the normal home straight, not through this app's own Home, about half a second
+  sooner; this app's Home (kept for Android's Home role) only passes on to it.
+- The look at the app in front when the TV comes on starts as soon as the display reports it is on, before Android's
+  screen-on broadcast arrives (about 0.7 s later on the Chromecast).
+- The app and its service are named "Prayer" and "Prayer service" on the TV.
 
 ## [0.23] - 2026-11-03
 

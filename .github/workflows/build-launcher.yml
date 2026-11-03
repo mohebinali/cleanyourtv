@@ -32,11 +32,6 @@ jobs:
         working-directory: launcher
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # Fatal on purpose: without the recordings, afnon.apk puts up a silent call to prayer.
-      - name: Fetch adhan audio
-        working-directory: afnon
-        run: bash tools/fetch-adhans.sh
-
       - name: Build the prayer home (afnon)
         working-directory: afnon
         run: ./gradlew assembleDebug --no-daemon --stacktrace
@@ -59,12 +54,6 @@ jobs:
           for a in out/*.apk; do
             unzip -l "$a" | grep -q classes.dex || { echo "ERROR: $a has no code"; exit 1; }
           done
-          # afnon.apk must carry every recording on fetch-adhans.sh's list, or a prayer set to a
-          # missing voice comes up silent. Counting from that list means a new voice needs no edit here.
-          # "|| true": grep -c exits 1 on a count of 0, and bash -e would quit before the message.
-          want=$(sed -n '/<<.LIST.$/,/^LIST$/p' afnon/tools/fetch-adhans.sh | grep -c '|' || true)
-          have=$(unzip -l out/afnon.apk | grep -c 'assets/adhan/.*\.mp3$' || true)
-          [ "$want" -gt 0 ] && [ "$have" -eq "$want" ] || { echo "ERROR: afnon.apk has $have of $want adhan recordings"; exit 1; }
           # No APK here may ask for the microphone. aapt2 reads the merged manifest, so a permission a library
           # brings in is caught too; the package: line proves aapt2 actually read the APK.
           aapt2=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt2

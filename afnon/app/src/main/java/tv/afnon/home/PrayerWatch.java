@@ -1,15 +1,17 @@
 package tv.afnon.home;
 
 import android.accessibilityservice.AccessibilityService;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
@@ -20,34 +22,31 @@ import android.widget.TextView;
 import java.util.Date;
 
 /**
- * Watches the clock from the remote buttons service, which the system keeps running whatever app is in front:
- * when a prayer's time begins, the adhan card, the arch on its side sliding in from the edge over whatever is on,
- * "Maghrib Adhan", for a minute; and, only if turned on in Settings (off by default), a reminder before each prayer
- * (Home's own card, or a banner over other apps, gone after 12 s, design/ApproachVideo.dc.html). Both are
- * accessibility overlays, so they need no overlay permission; they never take focus, touches or the sound, so the
- * programme goes on underneath.
+ * The prayer card. Watches the clock from the always-on service, and when a prayer's time begins slides in the
+ * mihrab on its side from the edge of the screen, over whatever is on, with حَيَّ عَلَى الصَّلَاةِ, the prayer's adhan
+ * ("Maghrib Adhan", «أذان المغرب») and its time, for a minute, then slides it back out. It makes no sound. It is an
+ * accessibility overlay, so it needs no overlay permission, and it never takes focus or touches, so the programme
+ * goes on underneath.
  */
 final class PrayerWatch {
     private static final long CHECK_MS = 15_000;
-    private static final int BANNER_SECONDS = 12;
-    /** How long the adhan card stays, and its slide in and out. */
+    /** How long the card stays, and its slide in and out. */
     private static final long ADHAN_MS = 60_000, SLIDE_IN_MS = 700, SLIDE_OUT_MS = 450;
     /**
-     * The adhan card: the arch on its side, 470 long and 280 high, its base on the screen's start edge (the left, the
-     * right in Arabic) and its top at 228. On Home that keeps it between the clock (it ends above 222) and the name of
-     * the dock app (from 522), across the screen from the pills and the week's weather under them, in either language.
+     * The card: the arch on its side, 470 long and 280 high, its base on the screen's start edge (the left, the right
+     * in Arabic) and its top at 228. On Home that keeps it between the clock (it ends above 222) and the name of the
+     * dock app (from 522), across the screen from the pills and the week's weather under them, in either language.
      */
     private static final int ADHAN_W = 470, ADHAN_H = 280, ADHAN_TOP = 228;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
     /**
-     * "prayer index:time" of the last reminder, call and spoken announcement, so each happens once. Saved, because
-     * the system restarts this service (low memory, TCL's background manager) and a fresh one would repeat them.
+     * "prayer index:time" of the last card, so each prayer gets one. Saved, because the system restarts this service
+     * now and then, and a fresh one would show it again.
      */
-    private String reminded, called, announced;
-    private View banner;
-    /** The adhan card's window while it shows, the card in it that slides, and the edge it came in from. */
+    private String called;
+    /** The card's window while it shows, the card in it that slides, and the edge it came in from. */
     private View adhanWindow, adhanCard;
     private boolean adhanFromLeft;
     private final Runnable slideAdhanOut = this::slideAdhanOut;
@@ -62,14 +61,7 @@ final class PrayerWatch {
 
     PrayerWatch(AccessibilityService service) {
         this.service = service;
-        // Only the adhan card comes up by itself: a reminder left on from before 0.15 is turned off, once; Settings can
-        // turn it back on.
-        if (!Prefs.of(service).getBoolean("remind_off_0_15", false)) {
-            Prefs.of(service).edit().putInt("remind", 0).putBoolean("remind_off_0_15", true).apply();
-        }
-        reminded = Prefs.of(service).getString("reminded", "");
         called = Prefs.of(service).getString("called", "");
-        announced = Prefs.of(service).getString("announced", "");
     }
 
     void start() {
@@ -79,68 +71,37 @@ final class PrayerWatch {
 
     void stop() {
         handler.removeCallbacksAndMessages(null);
-        hideBanner();
         hideAdhan();
     }
 
     private void check() {
+        // Asleep: nothing to show, and a card left up as the screen went off would come back with the screen, so it
+        // goes. The card isn't worth waking the TV for; switched on within the prayer's first two minutes, it shows.
         PowerManager pm = service.getSystemService(PowerManager.class);
-        Date now = new Date();
-        boolean asleep = pm != null && !pm.isInteractive();
-        // Asleep: nothing to show, unless the radio plays with the screen off (TCL Audio Only), for the spoken
-        // announcement. The adhan card is not worth waking the screen for: it is let go, as its minute would be.
-        // A card left up as the screen went off would come back with the screen: it goes with the screen.
-        if (asleep) hideAdhan();
-        if (asleep && !Radio.on()) return;
-        PrayerDay day = new PrayerDay(service, now);
-
-        int call = Reminders.dueCall(service, day, now);
-        if (call >= 0) {
-            String key = call + ":" + day.times[call].getTime();
-            // While Afnon's screensaver runs it wakes itself for the call; show the card once it has gone.
-            if (!key.equals(called) && !AfnonDream.running) {
-                called = key;
-                Prefs.of(service).edit().putString("called", key).apply();
-                if (!asleep) showAdhan(call, day.times[call], day.friday);
-            }
+        if (pm != null && !pm.isInteractive()) {
+            hideAdhan();
             return;
         }
-        // No call for a prayer whose adhan is off: just say that its time has begun (also with the screen off).
-        int quiet = Reminders.dueAnnounce(service, day, now);
-        if (quiet >= 0) {
-            String key = quiet + ":" + day.times[quiet].getTime();
-            if (!key.equals(announced)) {
-                announced = key;
-                Prefs.of(service).edit().putString("announced", key).apply();
-                Announce.now(service, quiet, day.friday);
-            }
-        }
-        if (asleep) return;
-        if (Reminders.dueReminder(service, day, now)) {
-            String key = day.nextIndex + ":" + day.nextTime.getTime();
-            if (key.equals(reminded) || AfnonDream.running) return;
-            reminded = key;
-            Prefs.of(service).edit().putString("reminded", key).apply();
-            if (Reminders.home != null) Reminders.home.showReminder();
-            else showBanner(day, now);
-            if (Prefs.remindVoice(service)) Announce.before(service, day.nextIndex, day.friday);
-        }
+        Date now = new Date();
+        PrayerDay day = new PrayerDay(now);
+        int prayer = day.justBegan(now);
+        if (prayer < 0) return;
+        String key = prayer + ":" + day.times[prayer].getTime();
+        if (key.equals(called)) return;
+        called = key;
+        Prefs.of(service).edit().putString("called", key).apply();
+        showAdhan(prayer, day.times[prayer], day.friday);
     }
 
-    // ---------------------------------------------------------------- adhan card
-
     /**
-     * The adhan card: the mihrab on its side (SideArchView), its base on the start edge of the screen (the left, the
-     * right in Arabic) and its point toward the middle, sliding in over whatever is on with حَيَّ عَلَى الصَّلَاةِ, the prayer's
-     * adhan ("Maghrib Adhan", «أذان المغرب») and its time. It stays a minute, a gold line under the words running out
-     * with it, then slides back out.
+     * The card: the mihrab on its side (SideArchView), its base on the start edge of the screen (the left, the right
+     * in Arabic) and its point toward the middle, sliding in over whatever is on with حَيَّ عَلَى الصَّلَاةِ, the prayer's
+     * adhan and its time. It stays a minute, a gold line under the words running out with it, then slides back out.
      */
     void showAdhan(int prayer, Date time, boolean friday) {
-        hideBanner();
         hideAdhan();
         Ui.init(service);
-        Text t = Screen.loadText(service);
-        boolean h24 = Prefs.clock24(service);
+        Text t = new Text(service);
         Typeface ui = service.getResources().getFont(R.font.alexandria_regular);
         Typeface sacred = service.getResources().getFont(R.font.amiri_regular);
         Typeface display = service.getResources().getFont(t.ar ? R.font.amiri_bold : R.font.marcellus_regular);
@@ -165,20 +126,20 @@ final class PrayerWatch {
         // "Maghrib" over "Adhan" in English, «أذان» over «المغرب» in Arabic: read down, the phrase either way.
         TextView name = text(display, t.ar ? 50 : 44, Tokens.PLASTER_100, names[prayer]);
         TextView word = text(display, 25, Tokens.GOLD_400, t.adhanWord());
-        TextView when = text(ui, 17, Tokens.MIST_400, Screen.clock(t, time, h24, 1f) + t.sep() + t.city());
+        TextView when = text(ui, 17, Tokens.MIST_400, t.when(time));
         when.setTextDirection(t.ar ? View.TEXT_DIRECTION_RTL : View.TEXT_DIRECTION_LTR);
         TextView first = t.ar ? word : name, second = t.ar ? name : word;
         for (TextView v : new TextView[] {verse, first, second, when}) {
             v.setGravity(Gravity.CENTER_HORIZONTAL);
             v.setMaxLines(1);
-            v.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            v.setEllipsize(TextUtils.TruncateAt.END);
             col.addView(v, new LinearLayout.LayoutParams(-1, -2));
         }
-        Screen.lineHeight(verse, 1.4f);
-        Screen.lineHeight(name, 1.15f);
+        lineHeight(verse, 1.4f);
+        lineHeight(name, 1.15f);
         ((LinearLayout.LayoutParams) first.getLayoutParams()).topMargin = Ui.ipx(4);
         ((LinearLayout.LayoutParams) when.getLayoutParams()).topMargin = Ui.ipx(6);
-        // The minute left, emptying toward the start side as the banner's does.
+        // The minute left, emptying toward the start side.
         View fill = new View(service);
         fill.setBackgroundColor(Tokens.GOLD_400);
         LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.ipx(150), Ui.ipx(3));
@@ -247,99 +208,6 @@ final class PrayerWatch {
         adhanCard = null;
     }
 
-    // ---------------------------------------------------------------- banner
-
-    void showBanner(PrayerDay day, Date now) {
-        hideBanner();
-        Ui.init(service);
-        Text t = Screen.loadText(service);
-        boolean h24 = Prefs.clock24(service);
-        Typeface ui = service.getResources().getFont(R.font.alexandria_regular);
-        Typeface display = service.getResources().getFont(t.ar ? R.font.amiri_bold : R.font.marcellus_regular);
-
-        LinearLayout card = new LinearLayout(service);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setLayoutDirection(t.ar ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        card.setPadding(Ui.ipx(28), Ui.ipx(24), Ui.ipx(28), 0);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Tokens.LAPIS_900);
-        bg.setCornerRadius(Ui.px(24));
-        bg.setStroke(Ui.ipx(2), Tokens.GOLD_400);
-        card.setBackground(bg);
-        card.setClipToOutline(true);
-        card.setClipToPadding(false);
-
-        LinearLayout row = new LinearLayout(service);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        Icon mihrab = new Icon(service, Icon.MIHRAB, 1.2f);
-        mihrab.setColor(Tokens.GOLD_400);
-        row.addView(mihrab, new LinearLayout.LayoutParams(Ui.ipx(56), Ui.ipx(72)));
-        LinearLayout words = new LinearLayout(service);
-        words.setOrientation(LinearLayout.VERTICAL);
-        String[] names = t.prayerNames();
-        if (day.friday) names[PrayerDay.DHUHR] = t.jumuah();
-        long minutes = Reminders.minutesLeft(day, now);
-        TextView label = text(ui, 20, Tokens.MIST_400, t.apLabel());
-        if (!t.ar) label.setLetterSpacing(0.2f);
-        TextView title = text(display, 44, Tokens.PLASTER_100,
-            t.apTitle(names[day.nextIndex], minutes, Screen.duration(Screen.secondsUntil(day.nextTime, now), false)));
-        TextView sub = text(ui, 22, Tokens.MIST_400, t.bannerSub(Screen.clock(t, day.nextTime, h24, 1f), BANNER_SECONDS));
-        words.addView(label);
-        words.addView(title);
-        words.addView(sub);
-        Screen.lineHeight(title, 1.1f);
-        ((LinearLayout.LayoutParams) sub.getLayoutParams()).topMargin = Ui.ipx(4);
-        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(0, -2, 1);
-        wlp.setMarginStart(Ui.ipx(20));
-        row.addView(words, wlp);
-        card.addView(row);
-
-        // The time left before it hides, emptying toward the start side.
-        FrameLayout track = new FrameLayout(service);
-        track.setBackgroundColor(Tokens.BANNER_TRACK);
-        View fill = new View(service);
-        fill.setBackgroundColor(Tokens.GOLD_400);
-        track.addView(fill, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(-1, Ui.ipx(6));
-        tlp.topMargin = Ui.ipx(18);
-        tlp.setMarginStart(-Ui.ipx(28));
-        tlp.setMarginEnd(-Ui.ipx(28));
-        card.addView(track, tlp);
-
-        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-            Ui.ipx(640), WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT);
-        // Top end: the left in Arabic, the right in English.
-        lp.gravity = Gravity.TOP | (t.ar ? Gravity.LEFT : Gravity.RIGHT);
-        lp.x = Ui.ipx(96);
-        lp.y = Ui.ipx(56);
-        WindowManager wm = service.getSystemService(WindowManager.class);
-        try {
-            wm.addView(card, lp);
-        } catch (RuntimeException e) {
-            return;
-        }
-        banner = card;
-        fill.post(() -> {
-            fill.setPivotX(t.ar ? fill.getWidth() : 0);
-            fill.animate().scaleX(0f).setDuration(BANNER_SECONDS * 1000L).setInterpolator(null).start();
-        });
-        handler.postDelayed(this::hideBanner, BANNER_SECONDS * 1000L);
-    }
-
-    void hideBanner() {
-        if (banner == null) return;
-        try {
-            service.getSystemService(WindowManager.class).removeView(banner);
-        } catch (RuntimeException ignored) {
-            // Already gone with the service.
-        }
-        banner = null;
-    }
-
     private TextView text(Typeface tf, float size, int color, CharSequence s) {
         TextView v = new TextView(service);
         v.setTypeface(tf);
@@ -349,25 +217,25 @@ final class PrayerWatch {
         return v;
     }
 
-    // ---------------------------------------------------------------- testing
+    /** The design's line height, a multiple of the text size: the extra space shared above and below the line. */
+    private static void lineHeight(TextView v, float lh) {
+        v.setIncludeFontPadding(false);
+        Paint.FontMetricsInt fm = v.getPaint().getFontMetricsInt();
+        int half = Math.round((v.getTextSize() * lh - (fm.descent - fm.ascent)) / 2);
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        lp.topMargin += half;
+        lp.bottomMargin += half;
+        v.setLayoutParams(lp);
+    }
 
     /**
-     * For checking on the TV without waiting for a prayer: the banner (with the spoken reminder, if on), the adhan
-     * card, or the spoken «حان الآن موعد صلاة …» for the next prayer, after a delay to switch to another app first.
-     * From adb: `am start -n tv.afnon.home/.Test --es test banner|adhan|announce` ("call" is the adhan card too).
+     * For checking on the TV without waiting for a prayer: the card for the next prayer, delayMs from now. From adb:
+     * `am start -n tv.afnon.home/.Test --es test adhan` (8 s, time to open another app first).
      */
-    void test(String kind, long delayMs) {
+    void test(long delayMs) {
         handler.postDelayed(() -> {
-            Date now = new Date();
-            PrayerDay day = new PrayerDay(service, now);
-            if ("adhan".equals(kind) || "call".equals(kind)) {
-                showAdhan(day.nextIndex, day.nextTime, day.friday);
-            } else if ("announce".equals(kind)) {
-                Announce.now(service, day.nextIndex, day.friday);
-            } else {
-                showBanner(day, now);
-                if (Prefs.remindVoice(service)) Announce.before(service, day.nextIndex, day.friday);
-            }
+            PrayerDay day = new PrayerDay(new Date());
+            showAdhan(day.nextIndex, day.nextTime, day.friday);
         }, delayMs);
     }
 }

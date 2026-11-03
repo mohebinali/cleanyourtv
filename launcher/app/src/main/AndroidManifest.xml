@@ -37,7 +37,7 @@
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
-        <!-- The prayer home, offered in the Theme menu. -->
+        <!-- The Prayer app (prayer card, Home over the stock launcher, AirPlay), never offered for uninstall. -->
         <package android:name="tv.afnon.home" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
