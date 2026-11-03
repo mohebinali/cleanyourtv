@@ -1781,8 +1781,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
     }
 
-    /** Google TV Settings' voice action for "go to sleep" (DaydreamVoiceAction), which starts the screensaver. */
+    /**
+     * Google TV Settings' voice action for "go to sleep" (DaydreamVoiceAction), which starts the screensaver. Sent to
+     * the TV's Settings app only: any app can declare the action, and Back must not open whichever one did.
+     */
     private static final String START_SCREENSAVER = "com.google.android.pano.action.SLEEP";
+    private static final String TV_SETTINGS = "com.android.tv.settings";
 
     /**
      * Home screen: Back (Return on the TV's remote) opens the launcher's clock when back_opens_clock is on. Otherwise
@@ -1798,7 +1802,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         try {
-            startActivity(new Intent(START_SCREENSAVER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            startActivity(new Intent(START_SCREENSAVER).setPackage(TV_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException | SecurityException e) {
             // Not Google TV: nothing answers it.
         }
