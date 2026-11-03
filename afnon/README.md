@@ -122,7 +122,7 @@ nothing from other sites except the station's stream when you press Play, and ke
 | `ACCESS_FINE_LOCATION` | Android 9+ hides the Wi-Fi name without it; Home shows the name. Afnon never reads the TV's location |
 | `CHANGE_CONFIGURATION`, `WRITE_SETTINGS` (app-op) | The Language pill sets the TV's own language, English or Arabic, as Settings → System → Language does. Both are granted over adb; without them the pill switches Afnon alone |
 | `REQUEST_DELETE_PACKAGES` | Uninstall in an app's hold-OK menu opens Android's own confirmation, which Android 9+ shows only to apps that hold it. Afnon never removes an app itself |
-| Accessibility service | Remote button mapping (see `RemoteKeys.java`), the prayer card over other apps, and, for AirPlay, the TV woken when a phone connects under the screensaver or in standby and Home again when it disconnects, for which it reads the AirPlay receiver's screen and no other (`AirPlayReturn.java`); when the screen comes on, the name of the app in front, to cover the stock home (`HomeTakeover.java`) |
+| Accessibility service | Remote button mapping (see `RemoteKeys.java`), the prayer card over other apps, and, for AirPlay, the TV woken when a phone connects under the screensaver or in standby (from the receiver's screen opening, or media sound starting under the screensaver; Android tells which kinds of sound play, not whose) and Home again when it disconnects, for which it reads the AirPlay receiver's screen and no other (`AirPlayReturn.java`); when the screen comes on, the name of the app in front, to cover the stock home (`HomeTakeover.java`) |
 
 ## Install
 

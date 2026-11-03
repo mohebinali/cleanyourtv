@@ -6,6 +6,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.AudioPlaybackConfiguration;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -32,7 +35,10 @@ import java.util.regex.Pattern;
  * A phone that connects while the TV can't show the receiver gets the TV woken for it. Under the screensaver the
  * receiver's screen opens beneath it, out of sight (the screensaver stays on top of every app), and in standby the
  * TV is off: when the receiver's screen comes up then, WakeActivity wakes the TV, which ends the screensaver, or
- * switches the TV on over HDMI-CEC, and the phone's picture is in front.
+ * switches the TV on over HDMI-CEC, and the phone's picture is in front. A receiver screen left open from an earlier
+ * phone sends no window event when it is brought back under the screensaver, so the sound is heard for too: the
+ * receiver starts playing as soon as a phone mirrors, and media sound that starts under the screensaver and keeps
+ * playing a second wakes the TV the same way. Android tells any app which kinds of sound are playing, not whose.
  *
  * Only the receiver's own screen is read (the service's canRetrieveWindowContent, xml/remote_keys.xml), on a thread of
  * its own so the remote's keys never wait for it, and nothing read is kept.
@@ -46,6 +52,8 @@ final class AirPlayReturn {
     private static final int AWAY_POLLS = 5;
     /** The receiver sends a window event or two as it opens: one wake for them. */
     private static final long WAKE_AGAIN_MS = 5_000;
+    /** Sound that starts under the screensaver wakes the TV if it is still playing this much later. */
+    private static final long SOUND_MS = 1_000;
     /**
      * The receiver's words that tell a phone is on it (its strings: connected_count "%d connected", the debug
      * overlay's debug_clients "Senders: %d", waiting_for_playback, cd_exit_fullscreen), and the mirrored picture's
@@ -77,14 +85,30 @@ final class AirPlayReturn {
         @Override
         public void onReceive(Context context, Intent intent) {
             dreaming = Intent.ACTION_DREAMING_STARTED.equals(intent.getAction());
+            handler.removeCallbacks(soundCheck);
+            if (dreaming) dreamPlayers = mediaPlayers(audio.getActivePlaybackConfigurations());
         }
     };
     private long wokeAt = -WAKE_AGAIN_MS;
+    private final AudioManager audio;
+    /** Media sound playing: the most players heard since the screensaver came up (radio left on under it, say). */
+    private int dreamPlayers;
+    private final Runnable soundCheck = this::checkSound;
+    private final AudioManager.AudioPlaybackCallback playback = new AudioManager.AudioPlaybackCallback() {
+        @Override
+        public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
+            if (!dreaming || mediaPlayers(configs) <= dreamPlayers) return;
+            handler.removeCallbacks(soundCheck);
+            handler.postDelayed(soundCheck, SOUND_MS);
+        }
+    };
 
     AirPlayReturn(AccessibilityService service) {
         this.service = service;
         thread.start();
         handler = new Handler(thread.getLooper());
+        audio = service.getSystemService(AudioManager.class);
+        audio.registerAudioPlaybackCallback(playback, handler);
         IntentFilter filter = new IntentFilter(Intent.ACTION_DREAMING_STARTED);
         filter.addAction(Intent.ACTION_DREAMING_STOPPED);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -107,13 +131,14 @@ final class AirPlayReturn {
         CharSequence pkg = e.getPackageName();
         if (pkg == null || !AIRPLAY.contentEquals(pkg)) return;
         handler.post(() -> {
-            wakeTv();
+            onReceiverOpened();
             begin();
         });
     }
 
     /** The service is going: the watch and its thread end. */
     void quit() {
+        audio.unregisterAudioPlaybackCallback(playback);
         try {
             service.unregisterReceiver(dreams);
         } catch (IllegalArgumentException ignored) {
@@ -123,14 +148,40 @@ final class AirPlayReturn {
         thread.quitSafely();
     }
 
-    /** The receiver's screen came up under the screensaver or in standby: WakeActivity wakes the TV for it. */
-    private void wakeTv() {
+    /** The receiver's screen came up: under the screensaver or in standby, the TV is woken for it. */
+    private void onReceiverOpened() {
         PowerManager pm = service.getSystemService(PowerManager.class);
         boolean standby = pm != null && !pm.isInteractive();
+        if (standby || dreaming) wakeTv("receiver opened " + (standby ? "in standby" : "under the screensaver"));
+    }
+
+    /** soundCheck: media sound that started under the screensaver is still playing, the receiver's for a phone. */
+    private void checkSound() {
+        int playing = mediaPlayers(audio.getActivePlaybackConfigurations());
+        if (!dreaming || playing <= dreamPlayers) return;
+        dreamPlayers = playing;
+        wakeTv("sound started under the screensaver");
+    }
+
+    /**
+     * Players of media sound, not of notifications or the system's own sounds: music and films (USAGE_MEDIA), and the
+     * receiver's, which its low_latency setting (on, on this TV) plays as USAGE_GAME.
+     */
+    private static int mediaPlayers(List<AudioPlaybackConfiguration> configs) {
+        int n = 0;
+        for (AudioPlaybackConfiguration c : configs) {
+            int usage = c.getAudioAttributes().getUsage();
+            if (usage == AudioAttributes.USAGE_MEDIA || usage == AudioAttributes.USAGE_GAME) n++;
+        }
+        return n;
+    }
+
+    /** WakeActivity wakes the TV: the screensaver ends, or the TV switches on over HDMI-CEC. Once for a few seconds. */
+    private void wakeTv(String why) {
         long now = SystemClock.elapsedRealtime();
-        if ((!standby && !dreaming) || now - wokeAt < WAKE_AGAIN_MS) return;
+        if (now - wokeAt < WAKE_AGAIN_MS) return;
         wokeAt = now;
-        Log.i(TAG, "receiver opened " + (standby ? "in standby" : "under the screensaver") + ": waking the TV");
+        Log.i(TAG, why + ": waking the TV");
         try {
             service.startActivity(new Intent(service, WakeActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));

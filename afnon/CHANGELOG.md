@@ -4,6 +4,17 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.23] - 2026-11-03
+
+### Fixed
+- AirPlay under the screensaver still did nothing from the second phone session on: the receiver's screen stays open
+  in the background after a session, and bringing it back under the screensaver sends no window event (only a newly
+  opened screen does). The receiver starts playing as soon as a phone mirrors, so media sound that starts under the
+  screensaver and is still playing a second later now wakes the TV too (AudioPlaybackCallback; Android tells which
+  kinds of sound play, not whose). The receiver's sound counts whether it plays as media or, with its low_latency
+  setting, as game sound; notification and system sounds don't, and sound already playing when the screensaver
+  started (the radio, say) doesn't either.
+
 ## [0.22] - 2026-11-03
 
 ### Fixed
