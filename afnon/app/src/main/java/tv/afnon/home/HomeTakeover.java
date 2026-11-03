@@ -13,14 +13,18 @@ import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -35,6 +39,11 @@ import java.util.Set;
  * whatever remote sent it: the only sign of a press from a TV remote over HDMI-CEC, whose keys are injected and never
  * reach an accessibility service. The phone app's Home also arrives as a key; the two count as one press, and a press
  * the stock home's window event has already answered opens nothing more.
+ *
+ * The screen coming on is looked at too. A Chromecast that starts or wakes with the stock home in front sends no window
+ * event for it when the TV comes on, so the app in front is read then (the top window's app name, nothing on it) and
+ * Afnon opens over the stock home at once. The boot probe used before stalled while the screen was off, so the stock
+ * home showed for seconds when the TV came on.
  *
  * It acts only while Afnon holds the Home role and HOME still reaches another launcher, so it does nothing where Afnon
  * really is Home, or where the stock home was kept on purpose. Hosted by RemoteKeys: its window events, its Home key
@@ -78,6 +87,17 @@ final class HomeTakeover {
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable openLater = this::openIfUnanswered;
+    private final Runnable lookAtFront = this::openOverStockFront;
+    /** The windows come back a moment after the screen: the app in front is read at these times after it comes on. */
+    private static final long[] SCREEN_ON_LOOKS_MS = {0, 300, 1000};
+    /** Android's broadcast for the screen coming on. */
+    private final BroadcastReceiver screenOnReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            handler.removeCallbacks(lookAtFront);
+            for (long delay : SCREEN_ON_LOOKS_MS) handler.postDelayed(lookAtFront, delay);
+        }
+    };
     /** Android's broadcast for a short Home press, whatever remote sent it. */
     private final BroadcastReceiver homeKeyReceiver = new BroadcastReceiver() {
         @Override
@@ -105,20 +125,60 @@ final class HomeTakeover {
     void start() {
         resolve(SystemClock.elapsedRealtime());
         IntentFilter filter = new IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
+        IntentFilter screenOn = new IntentFilter(Intent.ACTION_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             service.registerReceiver(homeKeyReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            service.registerReceiver(screenOnReceiver, screenOn, Context.RECEIVER_NOT_EXPORTED);
         } else {
             service.registerReceiver(homeKeyReceiver, filter);
+            service.registerReceiver(screenOnReceiver, screenOn);
         }
-        if (!stockHome.isEmpty()) probeAtBoot();
+        if (!stockHome.isEmpty()) atStart();
+    }
+
+    /**
+     * The service has just started (boot, or a restart): the stock home may already be in front, with no window event
+     * for it. With the screen on, the app in front is read and Afnon opens over the stock home; with it off, the screen
+     * coming on does that (screenOnReceiver). Only where the window list can't be read is the old probe used.
+     */
+    private void atStart() {
+        PowerManager pm = service.getSystemService(PowerManager.class);
+        if (pm != null && !pm.isInteractive()) return;
+        if (!openOverStockFront()) probeAtBoot();
+    }
+
+    /**
+     * Afnon over the stock launcher when it is the app in front (the top full-screen application window), unless it is
+     * showing voice search results or Afnon opened a moment ago. False when the window list could not be read.
+     */
+    private boolean openOverStockFront() {
+        long now = SystemClock.elapsedRealtime();
+        if (now - resolvedAt >= RESOLVE_MS) resolve(now);
+        if (stockHome.isEmpty() || assistantResults) return true;
+        // The service hears no window-list events, so its cached list may be old: read it afresh.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) service.clearCache();
+        List<AccessibilityWindowInfo> windows = service.getWindows();
+        for (AccessibilityWindowInfo w : windows) {
+            if (w.getType() != AccessibilityWindowInfo.TYPE_APPLICATION || w.isInPictureInPictureMode()) continue;
+            // Its app name is all that is wanted: no nodes below the root are fetched.
+            AccessibilityNodeInfo root = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                    ? w.getRoot(0) : w.getRoot();
+            if (root == null || root.getPackageName() == null) return false;
+            if (root.getPackageName().toString().equals(stockPackage) && now - openedAt >= SAME_PRESS_MS) open();
+            return true;
+        }
+        return false;
     }
 
     void stop() {
         handler.removeCallbacks(openLater);
-        try {
-            service.unregisterReceiver(homeKeyReceiver);
-        } catch (IllegalArgumentException ignored) {
-            // Already unregistered.
+        handler.removeCallbacks(lookAtFront);
+        for (BroadcastReceiver r : new BroadcastReceiver[] {homeKeyReceiver, screenOnReceiver}) {
+            try {
+                service.unregisterReceiver(r);
+            } catch (IllegalArgumentException ignored) {
+                // Already unregistered.
+            }
         }
     }
 
@@ -239,9 +299,10 @@ final class HomeTakeover {
     }
 
     /**
-     * At boot the stock home is often on screen before Android binds RemoteKeys, so no window event comes for it.
-     * Once per boot, open ProbeActivity: when it closes, whatever was in front comes back with a window event, and
-     * onWindowChanged acts only if that is the stock home, leaving an app or an HDMI input the TV resumed alone.
+     * The fallback where the window list can't be read. At boot the stock home is often on screen before Android binds
+     * RemoteKeys, so no window event comes for it. Once per boot, open ProbeActivity: when it closes, whatever was in
+     * front comes back with a window event, and onWindowChanged acts only if that is the stock home, leaving an app or
+     * an HDMI input the TV resumed alone.
      */
     private void probeAtBoot() {
         int boot = Settings.Global.getInt(service.getContentResolver(), Settings.Global.BOOT_COUNT, -1);

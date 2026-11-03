@@ -4,6 +4,15 @@ All notable changes to Afnon. Versions match `versionName` in `app/build.gradle`
 
 ## [Unreleased]
 
+## [0.21] - 2026-11-03
+
+### Fixed
+- Turning the TV on showed Google's home for a few seconds before the normal home came up. When the Chromecast
+  started with the TV off, the boot probe (ProbeActivity) waited for a screen that never drew, and closed only once
+  the TV was on, so the takeover came seconds late. The takeover now reads which app is in front as the screen comes
+  on (and when the service starts with it on) and opens Afnon over the stock home at once; the probe is left for a
+  TV whose window list can't be read.
+
 ## [0.20] - 2026-10-30
 
 ### Fixed

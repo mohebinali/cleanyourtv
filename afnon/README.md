@@ -88,6 +88,7 @@ Afnon started from [cleanyourtv](https://github.com/Gathin23/cleanyourtv):
   On Google TV, where the stock launcher keeps Home for as long as it is enabled, the same service puts
   Afnon over the stock home screen whenever it comes up (`HomeTakeover.java`), so the launcher and the
   setup wizard can stay enabled. Casting needs the wizard: the Cast receiver loads its credentials from it.
+  When the TV comes on with the stock home in front (after a boot or a wake), Afnon opens over it at once.
 - **Arabic and English.** RTL and LTR layouts. Language follows the TV or is set in Afnon. Digits are Latin
   (0-9) in both languages unless Settings → Display picks Arabic-Indic (٠-٩). The **Language** pill in the header
   switches the whole TV, English first and Arabic second (or the other way round), Arabic with Latin digits, and
@@ -121,7 +122,7 @@ nothing from other sites except the station's stream when you press Play, and ke
 | `ACCESS_FINE_LOCATION` | Android 9+ hides the Wi-Fi name without it; Home shows the name. Afnon never reads the TV's location |
 | `CHANGE_CONFIGURATION`, `WRITE_SETTINGS` (app-op) | The Language pill sets the TV's own language, English or Arabic, as Settings → System → Language does. Both are granted over adb; without them the pill switches Afnon alone |
 | `REQUEST_DELETE_PACKAGES` | Uninstall in an app's hold-OK menu opens Android's own confirmation, which Android 9+ shows only to apps that hold it. Afnon never removes an app itself |
-| Accessibility service | Remote button mapping (see `RemoteKeys.java`), the prayer card over other apps, and Home again when an AirPlay phone disconnects, for which it reads the AirPlay receiver's screen and no other (`AirPlayReturn.java`) |
+| Accessibility service | Remote button mapping (see `RemoteKeys.java`), the prayer card over other apps, and Home again when an AirPlay phone disconnects, for which it reads the AirPlay receiver's screen and no other (`AirPlayReturn.java`); when the screen comes on, the name of the app in front, to cover the stock home (`HomeTakeover.java`) |
 
 ## Install
 
