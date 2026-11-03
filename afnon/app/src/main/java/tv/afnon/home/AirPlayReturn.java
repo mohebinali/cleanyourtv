@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.media.AudioAttributes;
@@ -22,9 +23,6 @@ import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -56,9 +54,10 @@ import java.util.regex.Pattern;
  *   picture counts, so a connection that doesn't mirror never switches the TV. This needs the Chromecast awake while
  *   the TV shows another input (CEC setting power_state_change_on_active_source_lost = none, README); after 30 s
  *   there, anything left playing is paused, as the standby that setting replaced did.
- * - The Chromecast in standby: nothing; a TV that is off stays off. (A TV turned on straight to another input leaves
- *   the Chromecast asleep too, and that can't be told from a TV still off, so it is left alone as well.) A receiver
- *   screen still up when the TV next comes on is watched as one a phone was on, so it gives way to the normal home.
+ * - The TV off: nothing; it stays off. TvPower keeps the Chromecast awake then, with Wi-Fi off so no phone reaches it;
+ *   one that does all the same, or one with the Chromecast in standby, is left alone. The TV coming back on, to any
+ *   input, brings Wi-Fi back, so a phone mirroring then switches it as above. A receiver screen still up when the
+ *   Chromecast next wakes is watched as one a phone was on, so it gives way to the normal home.
  * A receiver screen brought back under the screensaver sends no window event, so sound is heard for too: media sound
  * that starts under the screensaver and keeps playing a second counts as the receiver opening. Android tells any app
  * which kinds of sound are playing, not whose.
@@ -93,11 +92,10 @@ final class AirPlayReturn {
     private static final long SOUND_MS = 1_000;
     /** A connection that began under the screensaver and never mirrored puts it back only if it was this short. */
     private static final long SHORT_MS = 10_000;
-    /**
-     * HDMI-CEC's active source as the vendor's service (com.droidlogic, HdmiCecActiveness) reports it for Netflix:
-     * {"activeCecState":"active"} while the TV shows the Chromecast, "inactive" while it shows another input or is off.
-     */
+    /** HDMI-CEC's active source as the vendor's service reports it (TvPower.tvShowsUs). */
     private static final String CEC_STATE = "nrdp_video_platform_capabilities";
+    /** Prefs key: the boot (Settings.Global.BOOT_COUNT) in which the receiver's screen was left open; -1 once closed. */
+    private static final String LEFT_BOOT = "airplay_left_boot";
     /** Google TV's "go to sleep" voice action, which starts the screensaver (as the normal home's Back does). */
     private static final String START_SCREENSAVER = "com.google.android.pano.action.SLEEP";
     private static final String TV_SETTINGS = "com.android.tv.settings";
@@ -114,6 +112,8 @@ final class AirPlayReturn {
     private static final String EXIT_FULLSCREEN = "Exit fullscreen", FULLSCREEN = "Fullscreen";
 
     private final AccessibilityService service;
+    /** Whether the TV is off with the Chromecast kept awake for it: then no phone brings the TV on. */
+    private final TvPower tvPower;
     private final HandlerThread thread = new HandlerThread("airplay-return");
     private final Handler handler;
     private final Runnable poll = this::poll;
@@ -130,7 +130,7 @@ final class AirPlayReturn {
     private boolean sawPicture;
     /** This time began under the screensaver; the TV has been switched to the Chromecast for it. */
     private boolean fromScreensaver, switched;
-    /** This time began with recheck, so its end doesn't look again. */
+    /** This time began with recheck and no phone has been read on it yet, so its end doesn't look again. */
     private boolean fromRecheck;
     /** When this time began. */
     private long begunAt;
@@ -146,10 +146,10 @@ final class AirPlayReturn {
     /** The screensaver is to go back up once the receiver's screen has closed (recheck). */
     private boolean screensaverDue;
     /**
-     * The receiver's screen has opened since it was last closed here, so it may be open behind other apps. Not known
-     * at the start: an earlier version, or the user, may have left it open.
+     * The receiver's screen has opened since it was last closed here, so it may be open behind other apps. Kept for a
+     * restarted service (an update); no receiver screen outlives a reboot (LEFT_BOOT).
      */
-    private boolean receiverLeft = true;
+    private boolean receiverLeft;
     private long wokeAt = -WAKE_AGAIN_MS, closingUntil, screenOnAt = -SETTLE_MS;
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override
@@ -189,8 +189,14 @@ final class AirPlayReturn {
         }
     };
 
-    AirPlayReturn(AccessibilityService service) {
+    AirPlayReturn(AccessibilityService service, TvPower tvPower) {
         this.service = service;
+        this.tvPower = tvPower;
+        SharedPreferences prefs = Prefs.of(service);
+        int boot = bootCount();
+        // Installed over a version that kept this in memory only: taken as open, for this boot only.
+        if (!prefs.contains(LEFT_BOOT)) prefs.edit().putInt(LEFT_BOOT, boot).apply();
+        receiverLeft = boot >= 0 && prefs.getInt(LEFT_BOOT, -1) == boot;
         thread.start();
         handler = new Handler(thread.getLooper());
         audio = service.getSystemService(AudioManager.class);
@@ -218,7 +224,9 @@ final class AirPlayReturn {
     /** The service has just started: the receiver may already be in front, and no window event will come for it. */
     void checkFront() {
         handler.post(() -> {
-            if (receiverInFront()) begin(false, false);
+            if (!receiverInFront()) return;
+            setReceiverLeft(true);
+            begin(false, false);
         });
     }
 
@@ -247,20 +255,20 @@ final class AirPlayReturn {
     private void receiverOpened() {
         // Its own events while it closes; a phone's among them is found by recheck.
         if (SystemClock.elapsedRealtime() < closingUntil) return;
-        receiverLeft = true;
+        setReceiverLeft(true);
         opened("receiver opened");
     }
 
     /**
-     * The receiver's screen opened (or its sound started under the screensaver). In standby the TV is left off. Under
-     * the screensaver (or just after a connection that only ended it, which is to put it back), or with the TV on
-     * another input, the user can't have opened it: it is for a phone, or for a phone asking, and its "0 connected"
-     * then closes it.
+     * The receiver's screen opened (or its sound started under the screensaver). In standby, or with the TV off and
+     * the Chromecast kept awake for it (TvPower), the TV is left off. Under the screensaver (or just after a connection
+     * that only ended it, which is to put it back), or with the TV on another input, the user can't have opened it: it
+     * is for a phone, or for a phone asking, and its "0 connected" then closes it.
      */
     private void opened(String why) {
         if (SystemClock.elapsedRealtime() < closingUntil) return;
-        if (!interactive()) {
-            Log.i(TAG, why + " in standby: the TV is left off");
+        if (!interactive() || tvPower.tvOff()) {
+            Log.i(TAG, why + (interactive() ? " with the TV off" : " in standby") + ": the TV is left off");
             return;
         }
         boolean screensaver = dreaming || screensaverDue;
@@ -284,11 +292,18 @@ final class AirPlayReturn {
     private void screensaverStarted() {
         dreamPlayers = mediaPlayers(audio.getActivePlaybackConfigurations());
         wokeAt = -WAKE_AGAIN_MS;
+        if (watching && SystemClock.elapsedRealtime() - begunAt < WAKE_AGAIN_MS) {
+            // Opened just as the screensaver came up, so by a phone: the user's own opening resets its timer, and the
+            // one put back here comes only with nothing in front. Ended again, as a phone's session under it.
+            sawSender = true;
+            fromScreensaver = true;
+            wakeTv("receiver just opened");
+            return;
+        }
         if (!receiverLeft || (watching && sawSender)) return;
         Log.i(TAG, "screensaver up, the receiver's screen left open: closing it");
         stop();
-        closeReceiver();
-        goHome();
+        if (closeReceiver()) goHome();
     }
 
     /**
@@ -305,20 +320,13 @@ final class AirPlayReturn {
     }
 
     /**
-     * Whether the TV shows the Chromecast, from HDMI-CEC as the vendor's service reports it (CEC_STATE). True where
-     * that isn't known, so nothing is switched on a guess. "inactive" can be out of date: a TV that wakes the
-     * Chromecast itself (turned on with its own remote, it sends the power key) shows it without making it the active
-     * source, so the state stays "inactive" until the next Home press. A switch then is one Home press too many, with
-     * the TV already here; taken as showing the Chromecast instead, a TV moved to another input afterwards, which
-     * changes nothing in the state, would never be switched back for a phone.
+     * Whether the TV shows the Chromecast (TvPower.tvShowsUs). Its "inactive" can be out of date after a TV that woke
+     * the Chromecast itself: a switch then is one Home press too many, with the TV already here; taken as showing the
+     * Chromecast instead, a TV moved to another input afterwards, which changes nothing in the state, would never be
+     * switched back for a phone.
      */
     private boolean tvShowsUs() {
-        try {
-            String caps = Settings.Global.getString(service.getContentResolver(), CEC_STATE);
-            return caps == null || !"inactive".equals(new JSONObject(caps).optString("activeCecState"));
-        } catch (JSONException | RuntimeException e) {
-            return true;
-        }
+        return TvPower.tvShowsUs(service);
     }
 
     /**
@@ -370,7 +378,9 @@ final class AirPlayReturn {
      * was turned off in): it is watched as one a phone was on, so "0 connected" gives way to the normal home.
      */
     private void afterWake() {
-        if (receiverInFront()) begin(true, false);
+        if (!receiverInFront()) return;
+        setReceiverLeft(true);
+        begin(true, false);
     }
 
     /**
@@ -471,12 +481,15 @@ final class AirPlayReturn {
         if (count > 0 || playbackWait || picture || !anyText) {
             // A phone is on it: counted, about to play, or its picture on the screen.
             sawSender = true;
+            // A phone read, not only taken for one by recheck: its end looks again for one reconnecting as it closes.
+            if (count > 0 || playbackWait || picture) fromRecheck = false;
             if (picture && !sawPicture) {
                 sawPicture = true;
                 // The phone's picture has just come up and the TV shows another input: it is switched over. Only
                 // now, so a TV moved to another input later in the session stays there; and not in the moments after
                 // the screen came on, while HDMI-CEC catches up with the TV that woke it.
-                if (!switched && !tvShowsUs() && SystemClock.elapsedRealtime() - screenOnAt >= SETTLE_MS) {
+                if (!switched && !tvShowsUs() && !tvPower.tvOff()
+                        && SystemClock.elapsedRealtime() - screenOnAt >= SETTLE_MS) {
                     switchTv();
                 }
             }
@@ -520,7 +533,7 @@ final class AirPlayReturn {
         if (watching || !interactive()) return;
         if (receiverInFront()) {
             Log.i(TAG, "receiver opened again as its screen closed");
-            receiverLeft = true;
+            setReceiverLeft(true);
             begin(true, screensaver);
             fromRecheck = true;
         } else if (screensaver && !dreaming) {
@@ -530,19 +543,36 @@ final class AirPlayReturn {
 
     /**
      * The receiver's screen closed for good: started over as a no-history screen, which the home going over it then
-     * finishes, so the next phone opens it afresh. Its window events while that happens are not a phone.
+     * finishes, so the next phone opens it afresh. Its window events while that happens are not a phone. False where
+     * nothing was started (no receiver to close, or it could not be started).
      */
-    private void closeReceiver() {
+    private boolean closeReceiver() {
         Intent open = receiverIntent();
-        if (open == null) return;
+        if (open == null) {
+            setReceiverLeft(false);
+            return false;
+        }
         closingUntil = SystemClock.elapsedRealtime() + CLOSING_MS;
         try {
             service.startActivity(open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK
                 | Intent.FLAG_ACTIVITY_NO_HISTORY | Intent.FLAG_ACTIVITY_NO_ANIMATION));
-            receiverLeft = false;
+            setReceiverLeft(false);
+            return true;
         } catch (ActivityNotFoundException | SecurityException e) {
             Log.w(TAG, "could not close the receiver's screen", e);
+            return false;
         }
+    }
+
+    /** receiverLeft, kept with the boot it holds for, so a restarted service knows it and a reboot clears it. */
+    private void setReceiverLeft(boolean left) {
+        if (receiverLeft == left) return;
+        receiverLeft = left;
+        Prefs.of(service).edit().putInt(LEFT_BOOT, left ? bootCount() : -1).apply();
+    }
+
+    private int bootCount() {
+        return Settings.Global.getInt(service.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
     }
 
     /**
@@ -555,7 +585,7 @@ final class AirPlayReturn {
             service.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                 .setPackage(HomeTakeover.NORMAL_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException | SecurityException e) {
-            if (tvShowsUs() && interactive() && !dreaming) {
+            if (tvShowsUs() && interactive() && !dreaming && !tvPower.tvOff()) {
                 service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
             } else {
                 Log.w(TAG, "could not open the normal home", e);

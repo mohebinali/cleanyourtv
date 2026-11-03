@@ -5,9 +5,16 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <!-- No permissions at all: the prayer times are worked out on the TV, the card is an accessibility overlay, and
-         the screensaver is ended for AirPlay through WakeActivity's turnScreenOn. No network, no microphone; the
-         release build fails any APK that asks for RECORD_AUDIO. -->
+    <!-- Wi-Fi turned off while the TV is off and back on as it comes on (TvPower), which only apps built for Android 9
+         or before may do (targetSdk 28). No network access, no microphone; the release build fails any APK that asks
+         for RECORD_AUDIO. The prayer times are worked out on the TV, the card is an accessibility overlay, and the
+         Chromecast is woken through WakeActivity's turnScreenOn. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- Granted over adb only (README): wireless debugging turned back on with Wi-Fi, as it was before. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Android 11+ package visibility, for HomeTakeover. -->
     <queries>
@@ -63,8 +70,9 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- Opened by AirPlayReturn when a phone's AirPlay comes in under the screensaver: Android wakes the screen
-             for it (turnScreenOn, as for an alarm clock), ending the screensaver, and it closes at once. -->
+        <!-- Opened to wake the Chromecast, which Android does for it (turnScreenOn, as for an alarm clock), and closed
+             at once: by AirPlayReturn to end the screensaver for a phone, by TvPower to keep it awake while the TV is
+             off and to end the screensaver as the TV comes on. -->
         <activity
             android:name=".WakeActivity"
             android:exported="false"
@@ -75,7 +83,8 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:targetApi="27" />
 
-        <!-- The always-on service: the prayer card, Home over the stock launcher, and AirPlay. Turned on with:
+        <!-- The always-on service: the prayer card, Home over the stock launcher, AirPlay, and the TV's power. Turned
+             on with:
              settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys -->
         <service
             android:name=".RemoteKeys"

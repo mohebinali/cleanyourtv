@@ -1,8 +1,8 @@
 # Prayer
 
 A small companion to the normal home (CleanYourTV's launcher, [`launcher/`](../launcher)) on a Google TV. It has no
-screens of its own and asks for no permissions. Its package is still `tv.afnon.home`, its name before 0.24, so it
-updates in place.
+screens of its own; its only permissions are turning Wi-Fi off and on, and, granted over adb, turning wireless
+debugging back on (Privacy). Its package is still `tv.afnon.home`, its name before 0.24, so it updates in place.
 
 ## What it does
 
@@ -18,22 +18,31 @@ updates in place.
   it whenever it comes up: on a Home press, and as soon as the TV comes on (`HomeTakeover.java`).
 - **AirPlay.** A phone that mirrors while the TV shows another input switches the TV to the Chromecast once its
   picture comes up (HDMI-CEC One Touch Play, as the remote's Home button sends); one that mirrors under the
-  screensaver ends it; with the Chromecast in standby (the TV off) nothing happens and the TV stays off. When the
-  phone disconnects, the receiver's screen closes and the TV goes back to Home (`AirPlayReturn.java`, for the
+  screensaver ends it; with the TV off nothing happens and the TV stays off. When the phone disconnects, the
+  receiver's screen closes and the TV goes back to Home (`AirPlayReturn.java`, for the
   [AirPlay receiver](https://github.com/jqssun/android-airplay-server)). Only a mirrored picture switches the TV, not
-  a phone that merely connects. A TV turned on straight to another input leaves the Chromecast in standby, which the
-  app can't tell from a TV that is off: mirroring switches it again once the Chromecast's input has been shown. With
-  the TV left on another input for 30 s, whatever plays on the Chromecast is paused.
+  a phone that merely connects. With the TV left on another input for 30 s, whatever plays on the Chromecast is
+  paused.
+- **The TV off, and back on.** Turned off, the Samsung puts the Chromecast to standby, and turned on with its own
+  remote it wakes it only at the end of its own handshake, 13 s after its HDMI is up. So when the TV goes off the
+  Chromecast's Wi-Fi goes off, no phone (YouTube's Cast button, AirPlay, the Google Home app) sees it while the TV is
+  off, and it is woken straight back up, ready: it is on the screen as soon as the TV comes back, to the home. The
+  Samsung drops its HDMI hot-plug for a second as it powers up, which brings Wi-Fi back (`TvPower.java`); a remote's
+  buttons do too, in case. Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to
+  none (Install), so the Chromecast's own power button no longer turns the TV off or on.
 
 All of it runs in one accessibility service, `RemoteKeys` (its old name, which the TV has turned on), because Android
 keeps an enabled accessibility service running whatever is on screen.
 
 ## Privacy
 
-No network access, no microphone, no permissions at all. The service reads no app's screen except the AirPlay
-receiver's (for "1 connected" / "0 connected"), and which app is in front (its name only).
+No network access and no microphone. Its permissions turn Wi-Fi off while the TV is off and back on as it comes on,
+which only apps built for Android 9 or before may do (hence targetSdk 28), and, granted over adb, write one secure
+setting: wireless debugging, back on with Wi-Fi where it was on (Android turns it off with Wi-Fi). The service reads
+no app's screen except the AirPlay receiver's (for "1 connected" / "0 connected"), and which app is in front (its name
+only); it notices that the focus moved, not what took it.
 It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
-shows the Chromecast).
+shows the Chromecast), and hears the HDMI sound output being unplugged and plugged back in.
 To tell when a phone starts mirroring under the screensaver it notices that media sound has started playing; Android
 tells any app which kinds of sound are playing, not whose, and nothing is recorded. Nothing read is kept.
 
@@ -54,6 +63,13 @@ adb shell settings put secure accessibility_enabled 1
 # Stay awake while the TV shows another input, so a phone's AirPlay can switch the TV over. Google TV's default,
 # standby_now, sleeps 30 s after the TV leaves the Chromecast (the app pauses what plays then instead).
 adb shell cmd hdmi_control cec_setting set power_state_change_on_active_source_lost none
+# Waking the Chromecast while the TV is off leaves the TV off (no One Touch Play on wake, no <Standby> on sleep).
+adb shell cmd hdmi_control cec_setting set power_control_mode none
+# No picture-in-picture for the AirPlay receiver: on Home with a phone on it, it would shrink into a corner window,
+# unreadable to the app, that stays over every app after the phone leaves.
+adb shell appops set io.github.jqssun.airplay PICTURE_IN_PICTURE ignore
+# Wireless debugging back on with Wi-Fi (optional: without it, it stays off after the TV's first time off).
+adb shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
 ```
 
 The Home role is what lets the service act; this app's Home itself only passes on to the normal home.
@@ -65,17 +81,20 @@ adb shell am start -n tv.afnon.home/.Test --es test adhan
 ```
 
 The card for the next prayer comes up 8 s later, time to open another app first. Only the adb shell can start the
-`.Test` alias.
+`.Test` alias. `--es test wifi` turns Wi-Fi off for 25 s and back on, the app doing both, so adb over Wi-Fi comes back
+(never cut it with `svc wifi disable` over adb over Wi-Fi: nothing then turns it back on); `--es test dry` has the
+TV's power handled with Wi-Fi only logged until the service restarts.
 
 ## Files
 
 | File | What |
 |---|---|
-| `RemoteKeys.java` | The always-on accessibility service that hosts the three below |
+| `RemoteKeys.java` | The always-on accessibility service that hosts the four below |
 | `PrayerWatch.java`, `SideArchView.java` | The prayer card and its arch |
 | `PrayerDay.java`, `Text.java` | The prayer times, and the card's words in Arabic or English |
 | `HomeTakeover.java`, `ProbeActivity.java`, `MainActivity.java` | Home kept on the normal home |
 | `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: a phone's picture brought to the TV, Home again when it leaves |
+| `TvPower.java` | The Chromecast kept ready and off Wi-Fi while the TV is off |
 
 ## Licence
 

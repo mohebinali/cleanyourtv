@@ -4,6 +4,42 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.29] - 2026-11-03
+
+### Added
+- The TV off, and back on (TvPower). Turned off, the Samsung sends HDMI-CEC <Standby>; turned on with its own remote
+  it woke the Chromecast only at the end of its handshake, 13 s after its HDMI was up (18:28:08 hot-plug, 18:28:16
+  Samsung-only command refused, 18:28:21 power key), so the home took that long, as the user found. Now:
+  - The TV's <Standby> turns the CEC state "inactive" about 0.5 s before the Chromecast's screen goes off (17:22:07;
+    the Chromecast's own sleep does so 0.35 s after it, 17:55:11, and is left alone). Wi-Fi then goes off, so no
+    phone sees the Chromecast while the TV is off (YouTube's Cast button, AirPlay; both stayed advertised in standby,
+    and Low Power Standby, "Limit network in standby", is unsupported here). The normal home is put in front and the
+    Chromecast woken straight back up: with power_control_mode = none that wake sends no One Touch Play
+    (HdmiCecLocalDevicePlayback.onInitializeCecComplete), so the TV stayed off (17:55:17, its power status standby).
+  - The TV powering up drops its HDMI hot-plug for about a second (17:55:30.9 to 32.1, seen with the Chromecast
+    awake; in standby the Chromecast's apps hear nothing of it), reported as the HDMI sound output unplugged and back:
+    Wi-Fi back on, the screensaver ended if it is up. Two focus moves (a remote's buttons), the screensaver ended by
+    hand, the CEC state turning "active", or another wake do it too, in case that is missed.
+  - Wi-Fi needs targetSdk 28: apps built for later Androids may not turn it off and on (no confirmation dialog on
+    this TV: config_showConfirmationDialogForThirdPartyAppsEnablingWifi is false). Wireless debugging, which Android
+    turns off with Wi-Fi, is turned back on once Wi-Fi has connected, where it was on and WRITE_SECURE_SETTINGS has
+    been granted over adb; Android does that silently only on a trusted network.
+  - A wake that switched the TV on all the same (the CEC state turning "active" within 3 s) stops it for the run.
+- Test hooks `--es test wifi` (Wi-Fi off 25 s, then back on, the app doing both) and `--es test dry` (Wi-Fi only
+  logged). 18:11 that day, Wi-Fi cut with `svc wifi disable` over adb over Wi-Fi stayed off: the re-enable scheduled
+  on the TV died with the adb session.
+
+### Fixed (review of 0.28)
+- No picture-in-picture for the AirPlay receiver (`appops set io.github.jqssun.airplay PICTURE_IN_PICTURE ignore`,
+  install): Home during a mirror shrank it into a corner window, unreadable here, that stayed over every app after the
+  phone left. Home for the switch now sends it behind the home for under a second instead.
+- A receiver opened just as the screensaver came up (a phone connecting as the one put back starts, or as the idle one
+  does) is taken as a phone's and the screensaver ended again, rather than left under it or closed.
+- receiverLeft is kept per boot (Settings.Global.BOOT_COUNT): after a reboot no receiver screen is open, so the first
+  screensaver no longer opens the normal home over a paused app; a restarted service still knows of one left open.
+  With no receiver to close, nothing goes home.
+- A session started by the 2.3 s look looks again when it ends, once a phone has really been read on it.
+
 ## [0.28] - 2026-11-03
 
 ### Fixed
