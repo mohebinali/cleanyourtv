@@ -26,8 +26,8 @@ debugging back on (Privacy). Its package is still `tv.afnon.home`, its name befo
 - **The TV off, and back on.** Turned off, the Samsung puts the Chromecast to standby, and turned on with its own
   remote it wakes it only at the end of its own handshake, 13 s after its HDMI is up. So when the TV goes off the
   Chromecast's Wi-Fi goes off, no phone (YouTube's Cast button, AirPlay, the Google Home app) sees it while the TV is
-  off, and 30 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home. A
-  TV turned back on within the 30 s wakes it itself, the slower way it always did, and Home is then pressed: woken
+  off, and 10 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home. A
+  TV turned back on within the 10 s wakes it itself, the slower way it always did, and Home is then pressed: woken
   that way the Chromecast isn't HDMI-CEC's active source, and the Samsung sends its remote's buttons only to that.
   The Samsung drops its HDMI hot-plug for a second as it powers up, and selects the Chromecast as it comes up on its
   input, either of which brings Wi-Fi back (`TvPower.java`), and where the TV was showing the Chromecast, Home is
@@ -45,7 +45,8 @@ keeps an enabled accessibility service running whatever is on screen.
 No network access and no microphone. Its permissions turn Wi-Fi off while the TV is off and back on as it comes on,
 which only apps built for Android 9 or before may do (hence targetSdk 28), and, granted over adb, write one secure
 setting: wireless debugging, back on with Wi-Fi where it was on (Android turns it off with Wi-Fi). It sets one setting
-of the AirPlay receiver, which that app lets any app set: usb_only, on while the TV is off. The service reads
+of the AirPlay receiver, usb_only, on while the TV is off, for which the receiver asks DUMP, also granted over adb;
+the app dumps nothing with it. The service reads
 no app's screen except the AirPlay receiver's (for "1 connected" / "0 connected"), and which app is in front (its name
 only); it notices that the focus moved, not what took it.
 It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
@@ -77,6 +78,9 @@ adb shell cmd hdmi_control cec_setting set power_control_mode none
 adb shell appops set io.github.jqssun.airplay PICTURE_IN_PICTURE ignore
 # Wireless debugging back on with Wi-Fi (optional: without it, it stays off after the TV's first time off).
 adb shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
+# The AirPlay receiver off Wi-Fi while the TV is off, so iPhones drop it at once (optional: without it, Screen
+# Mirroring keeps showing it a while). The receiver takes its settings only from apps holding DUMP.
+adb shell pm grant tv.afnon.home android.permission.DUMP
 ```
 
 The Home role is what lets the service act; this app's Home itself only passes on to the normal home.

@@ -4,6 +4,17 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.34] - 2026-11-05
+
+### Fixed
+- The AirPlay receiver didn't leave Wi-Fi with the TV off: it takes settings only from apps holding DUMP, and
+  dropped this app's without a word. The app asks for DUMP, granted over adb (Install), and leaves AirPlay alone
+  without it.
+
+### Changed
+- The Chromecast is woken 10 s after the TV goes off, not 30 s: a TV turned back on sooner wakes it itself, 8 s into
+  its own start-up, so the picture took that long. 10 s is still well after the Samsung has gone to standby.
+
 ## [0.33] - 2026-11-05
 
 ### Fixed

@@ -15,6 +15,11 @@
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Granted over adb only (README): the AirPlay receiver takes settings only from apps holding it, and this app
+         sets one, usb_only, so the receiver leaves Wi-Fi while the TV is off (TvPower). Nothing is dumped. -->
+    <uses-permission
+        android:name="android.permission.DUMP"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Android 11+ package visibility, for HomeTakeover. -->
     <queries>

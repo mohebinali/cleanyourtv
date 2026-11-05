@@ -16,5 +16,7 @@ adb shell cmd hdmi_control cec_setting set power_control_mode none
 # No picture-in-picture for the AirPlay receiver (AirPlayReturn can't read it, and it outlives the phone).
 adb shell appops set io.github.jqssun.airplay PICTURE_IN_PICTURE ignore
 adb shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
+# The AirPlay receiver takes its settings (usb_only, while the TV is off) only from apps holding DUMP.
+adb shell pm grant tv.afnon.home android.permission.DUMP
 adb shell am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null
 echo "Prayer installed. Test the card with: adb shell am start -n tv.afnon.home/.Test --es test adhan"

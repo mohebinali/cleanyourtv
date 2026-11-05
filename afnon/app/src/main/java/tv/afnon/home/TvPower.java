@@ -1,5 +1,6 @@
 package tv.afnon.home;
 
+import android.Manifest;
 import android.accessibilityservice.AccessibilityService;
 import android.app.AlarmManager;
 import android.content.ActivityNotFoundException;
@@ -36,11 +37,11 @@ import org.json.JSONObject;
  * - The TV going off: its <Standby> makes HDMI-CEC say "inactive" before the Chromecast's screen goes off (the
  *   Chromecast's own sleep, a remote's power button, does so only after, and is left asleep). Wi-Fi goes off, so no
  *   phone sees the Chromecast while the TV is off (YouTube's Cast button, AirPlay, the Google Home app), the AirPlay
- *   receiver leaving Wi-Fi first with a goodbye, which iPhones need to drop it at once. 30 s on the normal home is put
+ *   receiver leaving Wi-Fi first with a goodbye, which iPhones need to drop it at once. 10 s on the normal home is put
  *   in front and the Chromecast woken back up (WakeActivity). That sends no One Touch Play, so the TV stays off, with
  *   the Chromecast's HDMI-CEC power_control_mode = none (README). Were the TV to come on all the same, the CEC state
  *   turns "active", and the Chromecast is not kept awake again until the service restarts. A TV turned back on within
- *   the 30 s wakes the Chromecast itself, as it always did.
+ *   the 10 s wakes the Chromecast itself, as it always did.
  * - The TV coming on: the Samsung drops its HDMI hot-plug for about a second as it powers up (17:55:30.9 to 32.1),
  *   which Android reports as the HDMI sound output unplugged and plugged back in; it does so in standby too (just
  *   after this app's wake, 2026-11-05 15:47:06), told apart by the TV's answer to Android's power-status question,
@@ -49,7 +50,7 @@ import org.json.JSONObject;
  *   it HDMI-CEC's active source then and there, for the Samsung's remote. In case that is missed: a remote's buttons
  *   moving the focus, the screensaver ended by hand, the CEC state turning "active" (powered up on the Chromecast's
  *   input, the Samsung selects it, <Set Stream Path>, 15:47:21), or a wake by anything else. A TV that wakes the
- *   Chromecast itself (on again within the 30 s) doesn't make it HDMI-CEC's active source, and the Samsung's remote
+ *   Chromecast itself (on again within the 10 s) doesn't make it HDMI-CEC's active source, and the Samsung's remote
  *   then reaches the Chromecast not at all (15:34:46 to 15:38:46): Home is pressed, which sends One Touch Play.
  * Wi-Fi is only turned back on here if it was turned off here. Android turns wireless debugging off with Wi-Fi; it is
  * turned back on once Wi-Fi has connected, where it was on and this app may (WRITE_SECURE_SETTINGS, granted over
@@ -70,9 +71,10 @@ final class TvPower {
      * HDMI-CEC start-up (its address claimed, then broadcasts of it, its vendor and features); 1.5 s after the TV's
      * <Standby> (0.29, 0.30) that fell in the Samsung's own change-over to standby, and two days on the Samsung was
      * found refusing every broadcast, so passing no remote keys, until its mains plug was pulled (2026-11-05). Not
-     * proven the cause, but by 30 s the Samsung has long settled.
+     * proven the cause, but by 10 s the Samsung has settled (it still broadcast 3 s in, 2026-11-03). Turned back on
+     * sooner, the TV wakes the Chromecast itself, 8 s into its own start-up (16:52:02 to 16:52:10), so not longer.
      */
-    private static final long REWAKE_MS = 30_000;
+    private static final long REWAKE_MS = 10_000;
     /** The screen going off again this soon after this app woke the Chromecast, the TV still off: not woken again. */
     private static final long REWAKE_AGAIN_MS = 10 * 60_000;
     /**
@@ -107,9 +109,12 @@ final class TvPower {
     private static final long POWER_REPLY_MS = 3_000;
     /** The TV left the Chromecast this soon before the screen went off: it was showing it as it went off. */
     private static final long LEFT_AT_OFF_MS = 3_000;
-    /** The AirPlay receiver, asked to leave Wi-Fi, has restarted and said goodbye this much later. */
+    /**
+     * The AirPlay receiver, asked to leave Wi-Fi, has restarted and said goodbye this much later (1.5 s, 2026-11-05
+     * 16:20:26; Android holds an app's alarm to 5 s at the least anyway).
+     */
     private static final long AIRPLAY_BYE_MS = 2_000;
-    /** The AirPlay receiver's settings, which it lets any app set (a key and a value; ordered, it answers). */
+    /** The AirPlay receiver's settings, taken from apps holding DUMP (a key and a value; ordered, it answers). */
     private static final ComponentName AIRPLAY_SETTINGS =
         new ComponentName(AirPlayReturn.AIRPLAY, AirPlayReturn.AIRPLAY + ".SettingsReceiver");
     private static final String AIRPLAY_SET = AirPlayReturn.AIRPLAY + ".SET_SETTING";
@@ -131,7 +136,8 @@ final class TvPower {
     private final BroadcastReceiver airplaySet = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.i(TAG, "AirPlay receiver: " + getResultData());
+            String answer = getResultData();
+            Log.i(TAG, "AirPlay receiver: " + (answer != null ? answer : "no answer"));
         }
     };
     /** Told when the TV comes back on (AirPlayReturn looks for a receiver screen opened meanwhile). */
@@ -328,7 +334,7 @@ final class TvPower {
      * The screen went off. For the TV turning off, HDMI-CEC said "inactive" before it did (it already does with the TV
      * on another input); for the Chromecast's own sleep, a remote's power button, only after (OWN_SLEEP_MS), and that
      * is left as it is, reachable for the phone that may wake it. For the TV, AirPlay and Wi-Fi go off and the
-     * Chromecast is woken again 30 s later, once; where that switched the TV on earlier, it stays asleep, off the
+     * Chromecast is woken again 10 s later, once; where that switched the TV on earlier, it stays asleep, off the
      * network until it wakes.
      */
     private void screenOff() {
@@ -407,6 +413,10 @@ final class TvPower {
             Log.i(TAG, "dry run: AirPlay would go " + (on ? "back on Wi-Fi" : "off Wi-Fi"));
             return false;
         }
+        if (!on && service.checkSelfPermission(Manifest.permission.DUMP) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "AirPlay left on Wi-Fi: the receiver takes settings only from apps holding DUMP (README)");
+            return false;
+        }
         // Written first and to disk, as for Wi-Fi: a run that dies in between still puts it back.
         prefs.edit().putBoolean(PREF_AIRPLAY_OFF, !on).commit();
         service.sendOrderedBroadcast(new Intent(AIRPLAY_SET).setComponent(AIRPLAY_SETTINGS)
@@ -416,7 +426,7 @@ final class TvPower {
     }
 
     /**
-     * rewake, from an alarm (a Handler's delay stops while the processor is suspended, as it may be 30 s into
+     * rewake, from an alarm (a Handler's delay stops while the processor is suspended, as it may be 10 s into
      * standby): the normal home in front, so an app left playing stays stopped, then the Chromecast woken. Android
      * keeps the processor awake while an alarm runs, so this waits (3 s at most) for the screen to come on.
      */
