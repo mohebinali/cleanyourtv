@@ -92,8 +92,10 @@ worked: `adb shell dumpsys hdmi_control` shows the Chromecast's `<Report Physica
 ending `(NACK, NACK)` and no broadcast from the TV, so the TV never learns which input the Chromecast is on and sends
 it no keys. To check, `adb shell cmd hdmi_control vendorcommand -t 4 -d 15 -a 00 -i true` and look for `4F:A0` at the
 end of that history: `(ACK)` is healthy. A standby doesn't clear it, nor does restarting the Chromecast; pulling the
-Samsung's mains plug for a minute does (unplug the other HDMI devices first, to rule them out). Then
-`adb shell cmd hdmi_control onetouchplay` tells the TV where the Chromecast is at once.
+Samsung's mains plug for about 20 s does (unplug the other HDMI devices first, to rule them out). Not much longer:
+30 s without the TV's HDMI, Android puts an idle Chromecast to sleep. Then `adb shell cmd hdmi_control onetouchplay`
+tells the TV where the Chromecast is at once. Save `adb shell dumpsys hdmi_control` before any of it: the message
+history, which shows what came just before the first refused broadcast, is lost when the Chromecast restarts.
 
 ## Files
 
