@@ -15,6 +15,10 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 - Woken once per TV-off: the screen going off again within 10 minutes of that wake, the TV still off, leaves the
   Chromecast asleep, so no wake and standby can go back and forth.
 
+### Added
+- README: how to tell the Samsung is refusing HDMI-CEC broadcasts (its remote then does nothing on the Chromecast),
+  and how to clear it: its mains plug out for about 20 s, the CEC history saved first.
+
 ## [0.30] - 2026-11-03
 
 ### Fixed (review of 0.29)
