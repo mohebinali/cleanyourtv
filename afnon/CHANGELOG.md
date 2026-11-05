@@ -4,6 +4,21 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.33] - 2026-11-05
+
+### Fixed
+- iPhones kept showing the Chromecast in Screen Mirroring with the TV off (YouTube's Cast button didn't): cut off with
+  Wi-Fi, the AirPlay receiver had no goodbye to send, and iOS keeps a device it has seen. The receiver now leaves
+  Wi-Fi first, by its own usb_only setting (which restarts its server, unregistering it from mDNS), and Wi-Fi goes 2 s
+  later; both come back with the TV.
+- The Samsung's remote reached nothing for 12 s after the TV came on: the Samsung checks its HDMI devices first and
+  only then selects the Chromecast (2026-11-05 15:59:25 to 15:59:37). Where the TV was showing the Chromecast as it
+  went off, Home is now pressed as soon as the TV is seen powering up, which makes the Chromecast HDMI-CEC's active
+  source at once.
+- The HDMI hot-plug dropping with the TV still in standby is no longer taken for it coming on: Android asks the TV its
+  power status as the hot-plug comes back, and a "standby" answer has the vendor's service write the CEC state again,
+  which "on" doesn't (seen at every answer that day).
+
 ## [0.32] - 2026-11-05
 
 ### Fixed

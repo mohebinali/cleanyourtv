@@ -30,7 +30,10 @@ debugging back on (Privacy). Its package is still `tv.afnon.home`, its name befo
   TV turned back on within the 30 s wakes it itself, the slower way it always did, and Home is then pressed: woken
   that way the Chromecast isn't HDMI-CEC's active source, and the Samsung sends its remote's buttons only to that.
   The Samsung drops its HDMI hot-plug for a second as it powers up, and selects the Chromecast as it comes up on its
-  input, either of which brings Wi-Fi back (`TvPower.java`); a remote's buttons do too, in case. Waking the
+  input, either of which brings Wi-Fi back (`TvPower.java`), and where the TV was showing the Chromecast, Home is
+  pressed then, so the Samsung's remote works at once rather than after its own 12 s check of its HDMI devices; a
+  remote's buttons bring Wi-Fi back too, in case. The AirPlay receiver leaves Wi-Fi just before it goes, through its
+  own usb_only setting, so iPhones drop it from Screen Mirroring at once. Waking the
   Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the Chromecast's
   own power button no longer turns the TV off or on.
 
@@ -41,7 +44,8 @@ keeps an enabled accessibility service running whatever is on screen.
 
 No network access and no microphone. Its permissions turn Wi-Fi off while the TV is off and back on as it comes on,
 which only apps built for Android 9 or before may do (hence targetSdk 28), and, granted over adb, write one secure
-setting: wireless debugging, back on with Wi-Fi where it was on (Android turns it off with Wi-Fi). The service reads
+setting: wireless debugging, back on with Wi-Fi where it was on (Android turns it off with Wi-Fi). It sets one setting
+of the AirPlay receiver, which that app lets any app set: usb_only, on while the TV is off. The service reads
 no app's screen except the AirPlay receiver's (for "1 connected" / "0 connected"), and which app is in front (its name
 only); it notices that the focus moved, not what took it.
 It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
