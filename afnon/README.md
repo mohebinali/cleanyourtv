@@ -26,8 +26,8 @@ debugging back on (Privacy). Its package is still `tv.afnon.home`, its name befo
 - **The TV off, and back on.** Turned off, the Samsung puts the Chromecast to standby, and turned on with its own
   remote it wakes it only at the end of its own handshake, 13 s after its HDMI is up. So when the TV goes off the
   Chromecast's Wi-Fi goes off, no phone (YouTube's Cast button, AirPlay, the Google Home app) sees it while the TV is
-  off, and it is woken straight back up, ready: it is on the screen as soon as the TV comes back, to the home. The
-  Samsung drops its HDMI hot-plug for a second as it powers up, which brings Wi-Fi back (`TvPower.java`); a remote's
+  off, and 30 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home (a
+  TV turned back on within the 30 s wakes it itself, the slower way it always did). The Samsung drops its HDMI hot-plug for a second as it powers up, which brings Wi-Fi back (`TvPower.java`); a remote's
   buttons do too, in case. Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to
   none (Install), so the Chromecast's own power button no longer turns the TV off or on.
 
@@ -84,6 +84,16 @@ The card for the next prayer comes up 8 s later, time to open another app first.
 `.Test` alias. `--es test wifi` turns Wi-Fi off for 25 s and back on, the app doing both, so adb over Wi-Fi comes back
 (never cut it with `svc wifi disable` over adb over Wi-Fi: nothing then turns it back on); `--es test dry` has the
 TV's power handled with Wi-Fi only logged until the service restarts.
+
+## The Samsung remote does nothing on the Chromecast
+
+Twice (2026-10-24, 2026-11-05) the Samsung has refused every HDMI-CEC broadcast while directed messages still
+worked: `adb shell dumpsys hdmi_control` shows the Chromecast's `<Report Physical Address>` and `<Active Source>`
+ending `(NACK, NACK)` and no broadcast from the TV, so the TV never learns which input the Chromecast is on and sends
+it no keys. To check, `adb shell cmd hdmi_control vendorcommand -t 4 -d 15 -a 00 -i true` and look for `4F:A0` at the
+end of that history: `(ACK)` is healthy. A standby doesn't clear it, nor does restarting the Chromecast; pulling the
+Samsung's mains plug for a minute does (unplug the other HDMI devices first, to rule them out). Then
+`adb shell cmd hdmi_control onetouchplay` tells the TV where the Chromecast is at once.
 
 ## Files
 

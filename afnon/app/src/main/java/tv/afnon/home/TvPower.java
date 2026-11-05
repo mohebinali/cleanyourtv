@@ -1,6 +1,7 @@
 package tv.afnon.home;
 
 import android.accessibilityservice.AccessibilityService;
+import android.app.AlarmManager;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -33,10 +34,11 @@ import org.json.JSONObject;
  * is kept awake while the TV is off, ready for the TV coming back:
  * - The TV going off: its <Standby> makes HDMI-CEC say "inactive" before the Chromecast's screen goes off (the
  *   Chromecast's own sleep, a remote's power button, does so only after, and is left asleep). Wi-Fi goes off, so no
- *   phone sees the Chromecast while the TV is off (YouTube's Cast button, AirPlay, the Google Home app), the normal
- *   home is put in front, and the Chromecast is woken straight back up (WakeActivity). That sends no One Touch Play, so
+ *   phone sees the Chromecast while the TV is off (YouTube's Cast button, AirPlay, the Google Home app), and 30 s on
+ *   the normal home is put in front and the Chromecast woken back up (WakeActivity). That sends no One Touch Play, so
  *   the TV stays off, with the Chromecast's HDMI-CEC power_control_mode = none (README). Were the TV to come on all
  *   the same, the CEC state turns "active", and the Chromecast is not kept awake again until the service restarts.
+ *   A TV turned back on within the 30 s wakes the Chromecast itself, as it always did.
  * - The TV coming on: the Samsung drops its HDMI hot-plug for about a second as it powers up (17:55:30.9 to 32.1),
  *   which Android reports as the HDMI sound output unplugged and plugged back in. Wi-Fi goes back on, and the
  *   screensaver, if it is up, is ended, so the home is what the TV shows. In case that is missed: a remote's buttons
@@ -55,8 +57,16 @@ final class TvPower {
     private static final String CEC_STATE = "nrdp_video_platform_capabilities";
     /** Wireless debugging (Settings.Global.ADB_WIFI_ENABLED). */
     private static final String ADB_WIFI = "adb_wifi_enabled";
-    /** After the screen goes off for the TV, the Chromecast is woken this much later, once standby has settled. */
-    private static final long REWAKE_MS = 1_500, DRY_REWAKE_MS = 8_000;
+    /**
+     * After the screen goes off for the TV, the Chromecast is woken this much later. The wake runs Android's whole
+     * HDMI-CEC start-up (its address claimed, then broadcasts of it, its vendor and features); 1.5 s after the TV's
+     * <Standby> (0.29, 0.30) that fell in the Samsung's own change-over to standby, and two days on the Samsung was
+     * found refusing every broadcast, so passing no remote keys, until its mains plug was pulled (2026-11-05). Not
+     * proven the cause, but by 30 s the Samsung has long settled.
+     */
+    private static final long REWAKE_MS = 30_000;
+    /** The screen going off again this soon after this app woke the Chromecast, the TV still off: not woken again. */
+    private static final long REWAKE_AGAIN_MS = 10 * 60_000;
     /**
      * The TV's <Standby> makes the CEC state "inactive" about 0.5 s before the screen goes off; the Chromecast's own
      * sleep, about 0.35 s after it (2026-11-03 17:22:07, 17:55:11). A state turned this recently is the latter's.
@@ -85,7 +95,8 @@ final class TvPower {
     private final AccessibilityService service;
     private final HandlerThread thread = new HandlerThread("tv-power");
     private final Handler handler;
-    private final Runnable rewake = this::rewake;
+    private final AlarmManager alarms;
+    private final AlarmManager.OnAlarmListener rewake = this::rewake;
     private final Runnable adbBack = this::adbBack;
     private final Runnable dreamEnded = this::dreamEnded;
     /** Told when the TV comes back on (AirPlayReturn looks for a receiver screen opened meanwhile). */
@@ -129,6 +140,7 @@ final class TvPower {
         this.service = service;
         thread.start();
         handler = new Handler(thread.getLooper());
+        alarms = service.getSystemService(AlarmManager.class);
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_DREAMING_STARTED);
@@ -227,7 +239,7 @@ final class TvPower {
         });
     }
 
-    /** The test hook's dry run: Wi-Fi is only logged until the service restarts, and the Chromecast woken later. */
+    /** The test hook's dry run: Wi-Fi is only logged until the service restarts. */
     void testDry() {
         handler.post(() -> {
             dry = true;
@@ -246,6 +258,7 @@ final class TvPower {
         } catch (IllegalArgumentException ignored) {
             // Already unregistered.
         }
+        cancelRewake();
         handler.removeCallbacksAndMessages(null);
         if (restoreWifi) {
             handler.post(() -> {
@@ -260,10 +273,10 @@ final class TvPower {
      * The screen went off. For the TV turning off, HDMI-CEC said "inactive" before it did (it already does with the TV
      * on another input); for the Chromecast's own sleep, a remote's power button, only after (OWN_SLEEP_MS), and that
      * is left as it is, reachable for the phone that may wake it. For the TV, Wi-Fi goes off and the Chromecast is
-     * woken again; where that switched the TV on earlier, it stays asleep, Wi-Fi off until it wakes.
+     * woken again 30 s later, once; where that switched the TV on earlier, it stays asleep, Wi-Fi off until it wakes.
      */
     private void screenOff() {
-        handler.removeCallbacks(rewake);
+        cancelRewake();
         if (tvShowsUs(service) || SystemClock.elapsedRealtime() - inactiveAt < OWN_SLEEP_MS) {
             Log.i(TAG, "Chromecast put to sleep with the TV on: left as it is");
             return;
@@ -273,12 +286,27 @@ final class TvPower {
             Log.i(TAG, "TV off: Wi-Fi off until the Chromecast wakes");
             return;
         }
+        if (ready && SystemClock.elapsedRealtime() - rewokeAt < REWAKE_AGAIN_MS) {
+            Log.w(TAG, "TV off again just after the Chromecast was woken for it: left asleep, Wi-Fi off");
+            return;
+        }
         setReady(true);
-        Log.i(TAG, "TV off: Wi-Fi off, the Chromecast woken again to be ready");
-        handler.postDelayed(rewake, dry ? DRY_REWAKE_MS : REWAKE_MS);
+        Log.i(TAG, "TV off: Wi-Fi off, the Chromecast woken again in " + REWAKE_MS / 1000 + " s to be ready");
+        if (alarms != null) {
+            alarms.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + REWAKE_MS,
+                "afnon:rewake", rewake, handler);
+        }
     }
 
-    /** rewake: the normal home in front, so an app left playing stays stopped, then the Chromecast woken. */
+    private void cancelRewake() {
+        if (alarms != null) alarms.cancel(rewake);
+    }
+
+    /**
+     * rewake, from an alarm (a Handler's delay stops while the processor is suspended, as it may be 30 s into
+     * standby): the normal home in front, so an app left playing stays stopped, then the Chromecast woken. Android
+     * keeps the processor awake while an alarm runs, so this waits (3 s at most) for the screen to come on.
+     */
     private void rewake() {
         if (!ready || interactive()) return;
         try {
@@ -290,6 +318,7 @@ final class TvPower {
         rewokeAt = SystemClock.elapsedRealtime();
         hdmiGoneAt = -1;
         wake();
+        for (int i = 0; i < 30 && !interactive(); i++) SystemClock.sleep(100);
     }
 
     /** The screen came on: woken by something other than this app (the TV's power key, a remote), so the TV is on. */
@@ -321,7 +350,7 @@ final class TvPower {
 
     /** The TV is on: Wi-Fi back on, and the screensaver, if up, ended so the TV shows the home. */
     private void tvOn(String why) {
-        handler.removeCallbacks(rewake);
+        cancelRewake();
         if (!ready) {
             if (prefs().getBoolean(PREF_WIFI_OFF, false)) {
                 Log.i(TAG, why + ": Wi-Fi back on");
