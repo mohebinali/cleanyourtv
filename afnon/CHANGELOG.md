@@ -4,6 +4,19 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.32] - 2026-11-05
+
+### Fixed
+- Wi-Fi came back 30 s after the TV went off: woken 30 s into standby, the Samsung drops its HDMI hot-plug for a
+  second and stays off, which was taken for it powering up, so phones saw the Chromecast again. An HDMI drop within
+  6 s of the app's wake is now the wake's own (a TV powered up then is seen by the CEC state instead, where it comes
+  up on the Chromecast's input).
+- The Samsung's remote did nothing after the TV was turned back on within the 30 s: the TV then wakes the Chromecast
+  with its power key, which doesn't make it HDMI-CEC's active source, and the Samsung sends its remote's buttons only
+  to that. Home is pressed then (One Touch Play). Powered up with the Chromecast awake, the Samsung selects it itself
+  (<Set Stream Path>), and its remote works.
+- No warning from Android at each TV-off for cancelling a wake that wasn't set.
+
 ## [0.31] - 2026-11-05
 
 ### Changed

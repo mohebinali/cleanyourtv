@@ -26,10 +26,13 @@ debugging back on (Privacy). Its package is still `tv.afnon.home`, its name befo
 - **The TV off, and back on.** Turned off, the Samsung puts the Chromecast to standby, and turned on with its own
   remote it wakes it only at the end of its own handshake, 13 s after its HDMI is up. So when the TV goes off the
   Chromecast's Wi-Fi goes off, no phone (YouTube's Cast button, AirPlay, the Google Home app) sees it while the TV is
-  off, and 30 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home (a
-  TV turned back on within the 30 s wakes it itself, the slower way it always did). The Samsung drops its HDMI hot-plug for a second as it powers up, which brings Wi-Fi back (`TvPower.java`); a remote's
-  buttons do too, in case. Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to
-  none (Install), so the Chromecast's own power button no longer turns the TV off or on.
+  off, and 30 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home. A
+  TV turned back on within the 30 s wakes it itself, the slower way it always did, and Home is then pressed: woken
+  that way the Chromecast isn't HDMI-CEC's active source, and the Samsung sends its remote's buttons only to that.
+  The Samsung drops its HDMI hot-plug for a second as it powers up, and selects the Chromecast as it comes up on its
+  input, either of which brings Wi-Fi back (`TvPower.java`); a remote's buttons do too, in case. Waking the
+  Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the Chromecast's
+  own power button no longer turns the TV off or on.
 
 All of it runs in one accessibility service, `RemoteKeys` (its old name, which the TV has turned on), because Android
 keeps an enabled accessibility service running whatever is on screen.

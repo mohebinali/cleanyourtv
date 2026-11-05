@@ -40,9 +40,13 @@ import org.json.JSONObject;
  *   the same, the CEC state turns "active", and the Chromecast is not kept awake again until the service restarts.
  *   A TV turned back on within the 30 s wakes the Chromecast itself, as it always did.
  * - The TV coming on: the Samsung drops its HDMI hot-plug for about a second as it powers up (17:55:30.9 to 32.1),
- *   which Android reports as the HDMI sound output unplugged and plugged back in. Wi-Fi goes back on, and the
+ *   which Android reports as the HDMI sound output unplugged and plugged back in (it does so too just after this
+ *   app's wake, staying in standby, 2026-11-05 15:47:06, which isn't counted). Wi-Fi goes back on, and the
  *   screensaver, if it is up, is ended, so the home is what the TV shows. In case that is missed: a remote's buttons
- *   moving the focus, the screensaver ended by hand, the CEC state turning "active", or a wake by anything else.
+ *   moving the focus, the screensaver ended by hand, the CEC state turning "active" (powered up on the Chromecast's
+ *   input, the Samsung selects it, <Set Stream Path>, 15:47:21), or a wake by anything else. A TV that wakes the
+ *   Chromecast itself (on again within the 30 s) doesn't make it HDMI-CEC's active source, and the Samsung's remote
+ *   then reaches the Chromecast not at all (15:34:46 to 15:38:46): Home is pressed, which sends One Touch Play.
  * Wi-Fi is only turned back on here if it was turned off here. Android turns wireless debugging off with Wi-Fi; it is
  * turned back on once Wi-Fi has connected, where it was on and this app may (WRITE_SECURE_SETTINGS, granted over
  * adb), which Android does silently only on a network it already trusts. Only apps built for Android 9 or before may
@@ -72,7 +76,10 @@ final class TvPower {
      * sleep, about 0.35 s after it (2026-11-03 17:22:07, 17:55:11). A state turned this recently is the latter's.
      */
     private static final long OWN_SLEEP_MS = 250;
-    /** Screen-on and HDMI changes this soon after this app woke the Chromecast are that wake's own. */
+    /**
+     * Screen-on and HDMI changes this soon after this app woke the Chromecast are that wake's own: woken 30 s into
+     * standby, the Samsung dropped its HDMI hot-plug 0.9 s later for 1.5 s and stayed off (2026-11-05 15:47:06).
+     */
     private static final long OWN_WAKE_MS = 6_000;
     /**
      * Focus moves are a remote's buttons only after the home this app opened has settled, not just after a window came
@@ -109,6 +116,8 @@ final class TvPower {
     /** The test hook's dry run: Wi-Fi is logged, not turned off or on. */
     private boolean dry;
     private boolean dreaming;
+    /** rewake's alarm is set (cancelling one that isn't makes Android log a warning). */
+    private boolean rewakeSet;
     private long rewokeAt = -OWN_WAKE_MS, hdmiGoneAt = -1, lastFocusAt = -FOCUS_PAIR_MS;
     /** When a window last came up (its focus moves are not a remote's). */
     private long windowAt = Long.MIN_VALUE / 2;
@@ -258,7 +267,7 @@ final class TvPower {
         } catch (IllegalArgumentException ignored) {
             // Already unregistered.
         }
-        cancelRewake();
+        if (alarms != null) alarms.cancel(rewake);
         handler.removeCallbacksAndMessages(null);
         if (restoreWifi) {
             handler.post(() -> {
@@ -295,11 +304,13 @@ final class TvPower {
         if (alarms != null) {
             alarms.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + REWAKE_MS,
                 "afnon:rewake", rewake, handler);
+            rewakeSet = true;
         }
     }
 
     private void cancelRewake() {
-        if (alarms != null) alarms.cancel(rewake);
+        if (rewakeSet) alarms.cancel(rewake);
+        rewakeSet = false;
     }
 
     /**
@@ -308,6 +319,7 @@ final class TvPower {
      * keeps the processor awake while an alarm runs, so this waits (3 s at most) for the screen to come on.
      */
     private void rewake() {
+        rewakeSet = false;
         if (!ready || interactive()) return;
         try {
             service.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -321,21 +333,31 @@ final class TvPower {
         for (int i = 0; i < 30 && !interactive(); i++) SystemClock.sleep(100);
     }
 
-    /** The screen came on: woken by something other than this app (the TV's power key, a remote), so the TV is on. */
+    /**
+     * The screen came on: woken by something other than this app (the TV's power key, a remote), so the TV is on.
+     * Woken by the TV's power key, the Chromecast isn't HDMI-CEC's active source, which the Samsung's remote needs:
+     * Home makes it one (One Touch Play), the TV already on and showing it.
+     */
     private void screenOn() {
         if (SystemClock.elapsedRealtime() - rewokeAt < OWN_WAKE_MS) return;
+        boolean wasOff = ready;
         tvOn("woken");
+        if (wasOff) {
+            Log.i(TAG, "Home, so the Samsung's remote reaches the Chromecast");
+            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+        }
     }
 
     /**
      * The HDMI sound output unplugged and plugged back in, with the Chromecast awake: the TV powering up. Its going as
-     * the Chromecast falls asleep comes with the screen off; a wake only plugs it back in, and rewake forgets any
-     * going before it. So a TV turned straight back on after the wake is seen too.
+     * the Chromecast falls asleep comes with the screen off, and rewake forgets any going before it; the Samsung, in
+     * standby, drops it too just after a wake (OWN_WAKE_MS). A TV powered up in those seconds is seen by the CEC
+     * state instead, where it comes up on the Chromecast's input.
      */
     private void hdmi(boolean plugged) {
         if (!ready || !interactive()) return;
         if (!plugged) {
-            hdmiGoneAt = SystemClock.elapsedRealtime();
+            if (SystemClock.elapsedRealtime() - rewokeAt >= OWN_WAKE_MS) hdmiGoneAt = SystemClock.elapsedRealtime();
         } else if (hdmiGoneAt >= 0) {
             tvOn("HDMI came back (the TV powering up)");
         }
