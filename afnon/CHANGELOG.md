@@ -4,6 +4,13 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.36] - 2026-11-19
+
+### Fixed
+- 0.35 fell over as its service started: it read the restricted networking mode setting, which Android lets an app
+  write (with WRITE_SECURE_SETTINGS) but not read. It no longer reads it, going by what it did itself, and opens the
+  network once as the service starts with the TV on.
+
 ## [0.35] - 2026-11-19
 
 ### Fixed

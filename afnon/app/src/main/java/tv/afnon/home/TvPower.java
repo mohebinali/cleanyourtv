@@ -249,6 +249,7 @@ final class TvPower {
                 hide();
             } else {
                 setReady(false);
+                gate(false, true);
                 show();
             }
             cecPoll();
@@ -301,10 +302,10 @@ final class TvPower {
     void testGate() {
         handler.post(() -> {
             Log.i(TAG, "test: network closed to apps for " + TEST_GATE_MS / 1000 + " s");
-            gate(true);
+            gate(true, false);
             handler.postDelayed(() -> {
                 Log.i(TAG, "test: network open again");
-                gate(false);
+                gate(false, false);
             }, TEST_GATE_MS);
         });
     }
@@ -393,24 +394,25 @@ final class TvPower {
     private void hide() {
         if (!prefs().getBoolean(PREF_HIDE, true)) return;
         airplay(false);
-        gate(true);
+        gate(true, false);
     }
 
     /** Back for phones to see: whatever was hidden here. */
     private void show() {
-        gate(false);
+        gate(false, false);
         airplay(true);
     }
 
     /**
-     * The network closed to apps (GATE) or open again. Open again where this app closed it, and at any rate where it
-     * is found closed with the TV on: nothing else here closes it, and left closed nothing on the TV reaches the
-     * network. It takes WRITE_SECURE_SETTINGS, granted over adb (README); without it the Cast receiver stays seen.
+     * The network closed to apps (GATE) or open again: open again where this app closed it, and whatever this app
+     * knows of it as the service starts with the TV on, for nothing else here closes it, and left closed nothing on
+     * the TV reaches the network. Android lets an app write this setting (with WRITE_SECURE_SETTINGS, granted over
+     * adb, README) but not read it (0.35 did, and the service fell over), so what this app did is all it goes by.
+     * Without the grant the Cast receiver stays seen.
      */
-    private void gate(boolean closed) {
+    private void gate(boolean closed, boolean whatever) {
         SharedPreferences prefs = prefs();
-        boolean isClosed = Settings.Global.getInt(service.getContentResolver(), GATE, 0) != 0;
-        if (closed == isClosed && closed == prefs.getBoolean(PREF_GATE, false)) return;
+        if (closed == prefs.getBoolean(PREF_GATE, false) && !whatever) return;
         if (dry) {
             Log.i(TAG, "dry run: the network would be " + (closed ? "closed to apps" : "open again"));
             return;
@@ -420,9 +422,9 @@ final class TvPower {
             if (closed) prefs.edit().putBoolean(PREF_GATE, true).commit();
             Settings.Global.putInt(service.getContentResolver(), GATE, closed ? 1 : 0);
             if (!closed) prefs.edit().putBoolean(PREF_GATE, false).apply();
-        } catch (SecurityException e) {
+        } catch (RuntimeException e) {
             prefs.edit().putBoolean(PREF_GATE, false).apply();
-            Log.w(TAG, "the network is left open to apps: no WRITE_SECURE_SETTINGS (README)");
+            Log.w(TAG, "the network is left open to apps: the setting can't be written (README)", e);
         }
     }
 
