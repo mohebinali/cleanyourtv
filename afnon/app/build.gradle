@@ -9,10 +9,11 @@ android {
     defaultConfig {
         applicationId 'tv.afnon.home'
         minSdk 26
-        // 28 (Android 9): the last for which an app may turn Wi-Fi off and on (TvPower).
+        // 28 (Android 9), kept from when the app turned Wi-Fi off and on (0.29 to 0.34): the service has only been
+        // run at this level.
         targetSdk 28
-        versionCode 37
-        versionName '0.34'
+        versionCode 38
+        versionName '0.35'
     }
 
     compileOptions {

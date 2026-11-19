@@ -9,17 +9,21 @@ import android.view.accessibility.AccessibilityEvent;
  * run all the time: {@link PrayerWatch}, the card when a prayer's time begins; {@link HomeTakeover}, which keeps Home
  * on the normal home where Google TV sends it to its own launcher; {@link AirPlayReturn}, which brings an AirPlay
  * phone's picture to the TV (ending the screensaver, or switching the TV over from another input) and goes Home when
- * the phone leaves; and {@link TvPower}, which keeps the Chromecast awake and off Wi-Fi while the TV is off, so it is
- * there the moment the TV comes back and no phone sees it meanwhile. It filters no keys and reads no app's screen but
- * the AirPlay receiver's (focus moving is noticed, not what has it), and the app has no network access. Turned on with:
+ * the phone leaves; {@link TvPower}, which keeps the Chromecast awake and hidden from phones while the TV is off, so
+ * it is there the moment the TV comes back; {@link CastKeeper}, which keeps Android from freezing the Cast receiver;
+ * and {@link AdbKeeper}, which keeps wireless debugging on where asked to. It filters no keys and reads no app's
+ * screen but the AirPlay receiver's (focus moving is noticed, not what has it), and the app has no network access.
+ * Turned on with:
  * settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys
  */
 public class RemoteKeys extends AccessibilityService {
     /** The running watch and TV power, for the adb test hooks; null while the service is off. */
     static PrayerWatch watch;
     static TvPower tvPower;
+    static AdbKeeper adb;
     private HomeTakeover takeover;
     private AirPlayReturn airplay;
+    private CastKeeper cast;
 
     @Override
     protected void onServiceConnected() {
@@ -36,6 +40,12 @@ public class RemoteKeys extends AccessibilityService {
         airplay = new AirPlayReturn(this, tvPower);
         tvPower.onTvOn = airplay::tvCameOn;
         airplay.checkFront();
+        if (cast != null) cast.stop();
+        cast = new CastKeeper(this);
+        cast.start();
+        if (adb != null) adb.stop();
+        adb = new AdbKeeper(this);
+        adb.start();
     }
 
     @Override
@@ -48,6 +58,10 @@ public class RemoteKeys extends AccessibilityService {
         airplay = null;
         if (tvPower != null) tvPower.quit(true);
         tvPower = null;
+        if (cast != null) cast.stop();
+        cast = null;
+        if (adb != null) adb.stop();
+        adb = null;
         super.onDestroy();
     }
 

@@ -4,6 +4,30 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.35] - 2026-11-19
+
+### Fixed
+- Casting from a phone found nothing, on and off: with another home in front, nothing holds the Cast receiver and
+  Android 14 freezes it (frozen 22:13:30 to 22:30:42 that day; its port took a connection and never answered). The
+  service now keeps a binding to it (`CastKeeper`).
+- Nothing could cast for 6 to 20 s after the TV came on, and wireless debugging was lost: Wi-Fi is no longer turned
+  off while the TV is off. The Chromecast is hidden from phones by Android's restricted networking mode instead,
+  which closes the network to apps (the Cast receiver among them, adb let through) and lifts in an instant.
+- The TV coming on is read from Android's record of HDMI-CEC (`CecBus`, with DUMP): the TV saying its power is on, or
+  asking after its HDMI devices, a second or two in, where the hot-plug drop was often not there to see and the TV
+  selecting the Chromecast came 9 to 12 s in. Home is pressed for the Samsung's remote as soon as the TV says it is
+  on, where it was showing the Chromecast as it went off.
+
+### Added
+- Wireless debugging turned back on whenever Android turns it off, where asked to (`--es adb keep`): this Chromecast
+  drops it at every restart (`AdbKeeper`).
+- A diary of the TV going off and on and of HDMI-CEC broadcasts being refused, kept across restarts
+  (`files/events.log`).
+- `--es hide off` leaves the Chromecast seen by phones while the TV is off; `--es test gate` replaces `test wifi`.
+
+### Removed
+- Turning Wi-Fi off and on, and CHANGE_WIFI_STATE with it.
+
 ## [0.34] - 2026-11-05
 
 ### Fixed

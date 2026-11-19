@@ -1,8 +1,8 @@
 # Prayer
 
 A small companion to the normal home (CleanYourTV's launcher, [`launcher/`](../launcher)) on a Google TV. It has no
-screens of its own; its only permissions are turning Wi-Fi off and on, and, granted over adb, turning wireless
-debugging back on (Privacy). Its package is still `tv.afnon.home`, its name before 0.24, so it updates in place.
+screens of its own and no network access; what it may do beyond an ordinary app is granted over adb (Privacy). Its
+package is still `tv.afnon.home`, its name before 0.24, so it updates in place.
 
 ## What it does
 
@@ -25,28 +25,34 @@ debugging back on (Privacy). Its package is still `tv.afnon.home`, its name befo
   paused.
 - **The TV off, and back on.** Turned off, the Samsung puts the Chromecast to standby, and turned on with its own
   remote it wakes it only at the end of its own handshake, 13 s after its HDMI is up. So when the TV goes off the
-  Chromecast's Wi-Fi goes off, no phone (YouTube's Cast button, AirPlay, the Google Home app) sees it while the TV is
-  off, and 10 s later it is woken back up, ready: it is on the screen as soon as the TV comes back, to the home. A
-  TV turned back on within the 10 s wakes it itself, the slower way it always did, and Home is then pressed: woken
-  that way the Chromecast isn't HDMI-CEC's active source, and the Samsung sends its remote's buttons only to that.
-  The Samsung drops its HDMI hot-plug for a second as it powers up, and selects the Chromecast as it comes up on its
-  input, either of which brings Wi-Fi back (`TvPower.java`), and where the TV was showing the Chromecast, Home is
-  pressed then, so the Samsung's remote works at once rather than after its own 12 s check of its HDMI devices; a
-  remote's buttons bring Wi-Fi back too, in case. The AirPlay receiver leaves Wi-Fi just before it goes, through its
-  own usb_only setting, so iPhones drop it from Screen Mirroring at once. Waking the
-  Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the Chromecast's
-  own power button no longer turns the TV off or on.
+  Chromecast is hidden from phones (YouTube's Cast button, AirPlay) and 10 s later woken back up, ready: it is on
+  the screen as soon as the TV comes back, to the home. Hidden, with Wi-Fi left on: the AirPlay receiver leaves
+  Wi-Fi through its own usb_only setting, with the goodbye iPhones need to drop it from Screen Mirroring at once,
+  and Android's restricted networking mode closes the network to apps, the Cast receiver among them (adb is let
+  through); both lift in an instant when the TV comes on. The TV coming on is read from Android's own record of
+  HDMI-CEC (`CecBus.java`): the TV saying its power is on, or asking after its HDMI devices, a second or two into
+  powering up. Where the TV says it is on and was showing the Chromecast as it went off, Home is pressed then, so
+  the Samsung's remote works at once rather than after the Samsung's own 12 s check of its HDMI devices. A TV turned
+  back on within the 10 s wakes the Chromecast itself, the slower way it always did, and Home is pressed then too.
+  Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the
+  Chromecast's own power button no longer turns the TV off or on (`TvPower.java`).
+- **Casting that answers.** With another home in front of Google TV's own, nothing holds the Cast receiver, and
+  Android 14 freezes it like any background app: a phone then finds nothing to cast to until something thaws it.
+  The service keeps a binding to it, so it is never frozen (`CastKeeper.java`).
+- **Wireless debugging kept on**, where asked to (`--es adb keep`, below): Android turns it off whenever Wi-Fi drops,
+  and a Chromecast at every restart (`AdbKeeper.java`).
 
 All of it runs in one accessibility service, `RemoteKeys` (its old name, which the TV has turned on), because Android
 keeps an enabled accessibility service running whatever is on screen.
 
 ## Privacy
 
-No network access and no microphone. Its permissions turn Wi-Fi off while the TV is off and back on as it comes on,
-which only apps built for Android 9 or before may do (hence targetSdk 28), and, granted over adb, write one secure
-setting: wireless debugging, back on with Wi-Fi where it was on (Android turns it off with Wi-Fi). It sets one setting
-of the AirPlay receiver, usb_only, on while the TV is off, for which the receiver asks DUMP, also granted over adb;
-the app dumps nothing with it. The service reads
+No network access and no microphone. Granted over adb, it writes two system settings: restricted networking mode, on
+while the TV is off, and wireless debugging, back on where the owner asked for that. Also granted over adb, DUMP:
+with it the app sets one setting of the AirPlay receiver (usb_only, on while the TV is off; the receiver takes
+settings only from apps holding DUMP) and reads one dump, the HDMI service's, for the HDMI-CEC messages between the
+TV and the Chromecast (the TV powering up; broadcasts refused). It keeps a short diary of the TV going off and on
+in its own files (`files/events.log`). The service reads
 no app's screen except the AirPlay receiver's (for "1 connected" / "0 connected"), and which app is in front (its name
 only); it notices that the focus moved, not what took it.
 It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
@@ -76,11 +82,14 @@ adb shell cmd hdmi_control cec_setting set power_control_mode none
 # No picture-in-picture for the AirPlay receiver: on Home with a phone on it, it would shrink into a corner window,
 # unreadable to the app, that stays over every app after the phone leaves.
 adb shell appops set io.github.jqssun.airplay PICTURE_IN_PICTURE ignore
-# Wireless debugging back on with Wi-Fi (optional: without it, it stays off after the TV's first time off).
+# The network closed to apps while the TV is off, which hides the Cast receiver from phones, and wireless debugging
+# turned back on where asked to (optional: without it the Cast receiver stays seen).
 adb shell pm grant tv.afnon.home android.permission.WRITE_SECURE_SETTINGS
-# The AirPlay receiver off Wi-Fi while the TV is off, so iPhones drop it at once (optional: without it, Screen
-# Mirroring keeps showing it a while). The receiver takes its settings only from apps holding DUMP.
+# The AirPlay receiver off Wi-Fi while the TV is off (it takes its settings only from apps holding DUMP), and
+# HDMI-CEC's history read, for the TV powering up (optional: without it the TV coming on is seen later).
 adb shell pm grant tv.afnon.home android.permission.DUMP
+# Wireless debugging turned back on whenever Android turns it off (optional; `leave` stops it).
+adb shell am start -n tv.afnon.home/.Test --es adb keep
 ```
 
 The Home role is what lets the service act; this app's Home itself only passes on to the normal home.
@@ -92,32 +101,41 @@ adb shell am start -n tv.afnon.home/.Test --es test adhan
 ```
 
 The card for the next prayer comes up 8 s later, time to open another app first. Only the adb shell can start the
-`.Test` alias. `--es test wifi` turns Wi-Fi off for 25 s and back on, the app doing both, so adb over Wi-Fi comes back
-(never cut it with `svc wifi disable` over adb over Wi-Fi: nothing then turns it back on); `--es test dry` has the
-TV's power handled with Wi-Fi only logged until the service restarts.
+`.Test` alias. `--es test gate` closes the network to apps for 25 s and opens it again, the app doing both;
+`--es test dry` has the TV's power handled with the hiding only logged until the service restarts; `--es hide off`
+leaves the Chromecast seen by phones while the TV is off (`on` hides it again). What the service saw and did is in
+its diary: `adb shell run-as tv.afnon.home cat files/events.log`. Were the network ever left closed to apps (the
+app's data cleared with the TV off, say): `adb shell settings put global restricted_networking_mode 0`.
 
 ## The Samsung remote does nothing on the Chromecast
 
-Twice (2026-10-24, 2026-11-05) the Samsung has refused every HDMI-CEC broadcast while directed messages still
+Three times (2026-10-24, 11-05, 11-19) every HDMI-CEC broadcast was being refused while directed messages still
 worked: `adb shell dumpsys hdmi_control` shows the Chromecast's `<Report Physical Address>` and `<Active Source>`
 ending `(NACK, NACK)` and no broadcast from the TV, so the TV never learns which input the Chromecast is on and sends
-it no keys. To check, `adb shell cmd hdmi_control vendorcommand -t 4 -d 15 -a 00 -i true` and look for `4F:A0` at the
-end of that history: `(ACK)` is healthy. A standby doesn't clear it, nor does restarting the Chromecast; pulling the
-Samsung's mains plug for about 20 s does (unplug the other HDMI devices first, to rule them out). Not much longer:
-30 s without the TV's HDMI, Android puts an idle Chromecast to sleep. Then `adb shell cmd hdmi_control onetouchplay`
-tells the TV where the Chromecast is at once. Save `adb shell dumpsys hdmi_control` before any of it: the message
-history, which shows what came just before the first refused broadcast, is lost when the Chromecast restarts.
+it no keys. The service notes it in its diary (`files/events.log`). To check by hand,
+`adb shell cmd hdmi_control vendorcommand -t 4 -d 15 -a 00 -i true` and look for `4F:A0` at the end of that history:
+`(ACK)` is healthy. It was **another device on the TV's HDMI** saying no to them (2026-11-19): with the Chromecast's
+HDMI plug out of the TV its broadcasts went through, back in they were refused within 3 s, and they went through for
+good the moment the other HDMI devices were unplugged; plugged back in, those did not refuse again at once. So: unplug
+the other HDMI devices from the TV and plug them back in. Restarting the Chromecast or the TV's standby doesn't clear
+it; pulling the TV's mains plug did once (11-05), which also cuts the power of anything fed from its USB. Then
+`adb shell cmd hdmi_control onetouchplay` tells the TV where the Chromecast is at once. Save
+`adb shell dumpsys hdmi_control` before any of it: the message history, which shows what came just before the first
+refused broadcast, is lost when the Chromecast restarts.
 
 ## Files
 
 | File | What |
 |---|---|
-| `RemoteKeys.java` | The always-on accessibility service that hosts the four below |
+| `RemoteKeys.java` | The always-on accessibility service that hosts the rest |
 | `PrayerWatch.java`, `SideArchView.java` | The prayer card and its arch |
 | `PrayerDay.java`, `Text.java` | The prayer times, and the card's words in Arabic or English |
 | `HomeTakeover.java`, `ProbeActivity.java`, `MainActivity.java` | Home kept on the normal home |
 | `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: a phone's picture brought to the TV, Home again when it leaves |
-| `TvPower.java` | The Chromecast kept ready and off Wi-Fi while the TV is off |
+| `TvPower.java`, `CecBus.java` | The Chromecast kept ready and hidden from phones while the TV is off |
+| `CastKeeper.java` | The Cast receiver kept from being frozen |
+| `AdbKeeper.java` | Wireless debugging kept on, where asked to |
+| `Events.java` | The diary of what the service saw and did |
 
 ## Licence
 

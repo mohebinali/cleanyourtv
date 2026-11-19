@@ -5,18 +5,19 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <!-- Wi-Fi turned off while the TV is off and back on as it comes on (TvPower), which only apps built for Android 9
-         or before may do (targetSdk 28). No network access, no microphone; the release build fails any APK that asks
-         for RECORD_AUDIO. The prayer times are worked out on the TV, the card is an accessibility overlay, and the
-         Chromecast is woken through WakeActivity's turnScreenOn. -->
+    <!-- No network access, no microphone; the release build fails any APK that asks for RECORD_AUDIO. The prayer times
+         are worked out on the TV, the card is an accessibility overlay, and the Chromecast is woken through
+         WakeActivity's turnScreenOn. Whether Wi-Fi is connected is read before wireless debugging is turned back on
+         (AdbKeeper). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!-- Granted over adb only (README): wireless debugging turned back on with Wi-Fi, as it was before. -->
+    <!-- Granted over adb only (README): the network closed to apps while the TV is off, which hides the Cast receiver
+         from phones (TvPower), and wireless debugging turned back on where the owner asked for that (AdbKeeper). -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
-    <!-- Granted over adb only (README): the AirPlay receiver takes settings only from apps holding it, and this app
-         sets one, usb_only, so the receiver leaves Wi-Fi while the TV is off (TvPower). Nothing is dumped. -->
+    <!-- Granted over adb only (README). The AirPlay receiver takes settings only from apps holding it, and this app
+         sets one, usb_only, so the receiver leaves Wi-Fi while the TV is off (TvPower). And Android's record of
+         HDMI-CEC is read with it (CecBus): the TV powering up, and broadcasts refused. -->
     <uses-permission
         android:name="android.permission.DUMP"
         tools:ignore="ProtectedPermissions" />
@@ -27,6 +28,8 @@
         <package android:name="com.gathin.tvhome" />
         <!-- The AirPlay receiver, brought back to the front after the TV is switched to it (AirPlayReturn). -->
         <package android:name="io.github.jqssun.airplay" />
+        <!-- The Cast receiver, bound so Android doesn't freeze it (CastKeeper). -->
+        <package android:name="com.google.android.apps.mediashell" />
         <!-- Which launcher the HOME key reaches, and that launcher's home screens. -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
@@ -88,8 +91,8 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:targetApi="27" />
 
-        <!-- The always-on service: the prayer card, Home over the stock launcher, AirPlay, and the TV's power. Turned
-             on with:
+        <!-- The always-on service: the prayer card, Home over the stock launcher, AirPlay, the TV's power, and the
+             Cast receiver kept awake. Turned on with:
              settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys -->
         <service
             android:name=".RemoteKeys"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Prayer app, installs it over the running copy and sets what it needs from the system: the Home role
 # (so HomeTakeover may keep Home on the normal home), the always-on service (the prayer card, Home, AirPlay, the TV's
-# power), the HDMI-CEC settings that keeps, and the one adb-only grant (wireless debugging back on with Wi-Fi).
+# power, casting), the HDMI-CEC settings that keeps, and the adb-only grants (hidden from phones while the TV is off).
 set -e
 . "$(dirname "$0")/env.sh"
 (cd "$ROOT" && ./gradlew assembleDebug -q)
