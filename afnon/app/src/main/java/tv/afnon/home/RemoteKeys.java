@@ -10,8 +10,9 @@ import android.view.accessibility.AccessibilityEvent;
  * on the normal home where Google TV sends it to its own launcher; {@link AirPlayReturn}, which brings an AirPlay
  * phone's picture to the TV (ending the screensaver, or switching the TV over from another input) and goes Home when
  * the phone leaves; {@link TvPower}, which keeps the Chromecast awake and hidden from phones while the TV is off, so
- * it is there the moment the TV comes back; {@link CastKeeper}, which keeps Android from freezing the Cast receiver;
- * and {@link AdbKeeper}, which keeps wireless debugging on where asked to. It filters no keys and reads no app's
+ * it is there the moment the TV comes back, and has {@link JamNotice} say what to do when the TV's remote stops
+ * reaching the Chromecast; {@link CastKeeper}, which keeps Android from freezing the Cast receiver; and
+ * {@link AdbKeeper}, which keeps wireless debugging on where asked to. It filters no keys and reads no app's
  * screen but the AirPlay receiver's (focus moving is noticed, not what has it), and the app has no network access.
  * Turned on with:
  * settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys
@@ -21,6 +22,7 @@ public class RemoteKeys extends AccessibilityService {
     static PrayerWatch watch;
     static TvPower tvPower;
     static AdbKeeper adb;
+    static JamNotice notice;
     private HomeTakeover takeover;
     private AirPlayReturn airplay;
     private CastKeeper cast;
@@ -39,6 +41,9 @@ public class RemoteKeys extends AccessibilityService {
         if (airplay != null) airplay.quit();
         airplay = new AirPlayReturn(this, tvPower);
         tvPower.onTvOn = airplay::tvCameOn;
+        if (notice != null) notice.stop();
+        notice = new JamNotice(this);
+        tvPower.onRefused = notice::show;
         airplay.checkFront();
         if (cast != null) cast.stop();
         cast = new CastKeeper(this);
@@ -62,6 +67,8 @@ public class RemoteKeys extends AccessibilityService {
         cast = null;
         if (adb != null) adb.stop();
         adb = null;
+        if (notice != null) notice.stop();
+        notice = null;
         super.onDestroy();
     }
 

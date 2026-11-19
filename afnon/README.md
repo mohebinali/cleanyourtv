@@ -32,13 +32,18 @@ package is still `tv.afnon.home`, its name before 0.24, so it updates in place.
   through); both lift in an instant when the TV comes on. The TV coming on is read from Android's own record of
   HDMI-CEC (`CecBus.java`): the TV saying its power is on, or asking after its HDMI devices, a second or two into
   powering up. Where the TV says it is on and was showing the Chromecast as it went off, Home is pressed then, so
-  the Samsung's remote works at once rather than after the Samsung's own 12 s check of its HDMI devices. A TV turned
-  back on within the 10 s wakes the Chromecast itself, the slower way it always did, and Home is pressed then too.
+  the Samsung's remote works at once (3.5 s after power-on, 2026-11-19) rather than after the Samsung's own 9 to 12 s
+  check of its HDMI devices; turned straight back on (within 2 minutes) the TV only asks, and Home is pressed on
+  that. A TV turned back on within the 10 s wakes the Chromecast itself, the slower way it always did, and Home is
+  pressed then too.
   Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the
   Chromecast's own power button no longer turns the TV off or on (`TvPower.java`).
 - **Casting that answers.** With another home in front of Google TV's own, nothing holds the Cast receiver, and
   Android 14 freezes it like any background app: a phone then finds nothing to cast to until something thaws it.
   The service keeps a binding to it, so it is never frozen (`CastKeeper.java`).
+- **The TV's remote reaching nothing, said on the TV.** When some other device on the TV's HDMI refuses the
+  Chromecast's HDMI-CEC broadcasts (below), the TV passes it no buttons; a panel at the foot of the screen says what
+  cures it: unplug the other HDMI devices and plug them back in (`JamNotice.java`).
 - **Wireless debugging kept on**, where asked to (`--es adb keep`, below): Android turns it off whenever Wi-Fi drops,
   and a Chromecast at every restart (`AdbKeeper.java`).
 
@@ -112,7 +117,8 @@ app's data cleared with the TV off, say): `adb shell settings put global restric
 Three times (2026-10-24, 11-05, 11-19) every HDMI-CEC broadcast was being refused while directed messages still
 worked: `adb shell dumpsys hdmi_control` shows the Chromecast's `<Report Physical Address>` and `<Active Source>`
 ending `(NACK, NACK)` and no broadcast from the TV, so the TV never learns which input the Chromecast is on and sends
-it no keys. The service notes it in its diary (`files/events.log`). To check by hand,
+it no keys. The service says so on the TV (`--es test jam` shows the panel) and notes it in its diary
+(`files/events.log`). To check by hand,
 `adb shell cmd hdmi_control vendorcommand -t 4 -d 15 -a 00 -i true` and look for `4F:A0` at the end of that history:
 `(ACK)` is healthy. It was **another device on the TV's HDMI** saying no to them (2026-11-19): with the Chromecast's
 HDMI plug out of the TV its broadcasts went through, back in they were refused within 3 s, and they went through for
@@ -133,6 +139,7 @@ refused broadcast, is lost when the Chromecast restarts.
 | `HomeTakeover.java`, `ProbeActivity.java`, `MainActivity.java` | Home kept on the normal home |
 | `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: a phone's picture brought to the TV, Home again when it leaves |
 | `TvPower.java`, `CecBus.java` | The Chromecast kept ready and hidden from phones while the TV is off |
+| `JamNotice.java` | What to do when the TV's remote reaches nothing, said on the TV |
 | `CastKeeper.java` | The Cast receiver kept from being frozen |
 | `AdbKeeper.java` | Wireless debugging kept on, where asked to |
 | `Events.java` | The diary of what the service saw and did |

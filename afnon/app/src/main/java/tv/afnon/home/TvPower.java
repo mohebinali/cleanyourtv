@@ -71,8 +71,20 @@ final class TvPower {
      * doesn't. That hides the Chromecast from phones as Wi-Fi off did, and lifts in an instant.
      */
     private static final String GATE = "restricted_networking_mode";
-    /** HDMI-CEC's history is read this often while the TV is off, and this often otherwise (for refused broadcasts). */
-    private static final long CEC_POLL_MS = 1_000, CEC_WATCH_MS = 60_000;
+    /**
+     * HDMI-CEC's history is read this often while the TV is off, this often for a few seconds after its HDMI hot-plug
+     * came back (the TV's word on its power is then on its way), and this often otherwise (for refused broadcasts).
+     */
+    private static final long CEC_POLL_MS = 1_000, CEC_FAST_MS = 300, CEC_FAST_FOR_MS = 4_000, CEC_WATCH_MS = 60_000;
+    /** A read asked for by something on screen changing (a Home press sends broadcasts) waits this long, this often. */
+    private static final long CEC_SOON_MS = 3_000, CEC_SOON_EVERY_MS = 15_000;
+    /**
+     * The TV asking after its HDMI devices this soon after it went off is someone turning it straight back on: Home
+     * is pressed for its remote without waiting for its word on its power, which it then gives only late (asked back
+     * on 20 s after going off, it dropped no hot-plug, and its remote worked 9 s on, 2026-11-19 23:05:51 to 23:06:00).
+     * Later than this, a TV asking might be one looking after itself with its screen off, which Home would turn on.
+     */
+    private static final long BACK_SOON_MS = 2 * 60_000;
     /** So many things asked by the TV since it went off are its check of its HDMI devices: it is powering up. */
     private static final int TV_ASKS_UP = 2;
     /**
@@ -147,6 +159,8 @@ final class TvPower {
     };
     /** Told when the TV comes back on (AirPlayReturn looks for a receiver screen opened meanwhile). */
     volatile Runnable onTvOn;
+    /** Told, at each reading, while HDMI-CEC broadcasts are being refused (JamNotice says what to do). */
+    volatile Runnable onRefused;
     // Everything below is touched on the thread only, but for ready, read by AirPlayReturn.
     /** The TV is off, as far as is known, and the Chromecast kept awake for it, hidden from phones. */
     private volatile boolean ready;
@@ -159,6 +173,8 @@ final class TvPower {
     private boolean rewakeSet;
     /** HDMI-CEC from the TV counts for its coming on from this wall-clock time: the second after it went off. */
     private long offWall;
+    /** When the TV went off, when its hot-plug last came back while it was, and when the history was last read. */
+    private long offAt, replugAt = Long.MIN_VALUE / 2, readAt = Long.MIN_VALUE / 2;
     /** Counts the TV's goings off, so a reading of the history asked for one isn't taken for the next. */
     private int offCount;
     /** The Chromecast's HDMI-CEC broadcasts are being refused, as last read; and whether the history could be read. */
@@ -169,8 +185,6 @@ final class TvPower {
     private boolean backHere;
     /** When the CEC state last went from "active" to "inactive": the TV left the Chromecast (another input, or off). */
     private long leftAt = Long.MIN_VALUE / 2;
-    /** When the HDMI hot-plug came back with the TV off (poweredUp). */
-    private long replugAt;
     private long rewokeAt = -OWN_WAKE_MS, hdmiGoneAt = -1, lastFocusAt = -FOCUS_PAIR_MS;
     /** When a window last came up (its focus moves are not a remote's). */
     private long windowAt = Long.MIN_VALUE / 2;
@@ -276,9 +290,19 @@ final class TvPower {
         }
     }
 
-    /** A window came up (its focus moving with it is not a remote's buttons). */
+    /**
+     * A window came up (its focus moving with it is not a remote's buttons). A Home press brings one up and sends
+     * broadcasts, so the history is read soon, for their being refused.
+     */
     void onWindow() {
-        handler.post(() -> windowAt = SystemClock.elapsedRealtime());
+        handler.post(() -> {
+            windowAt = SystemClock.elapsedRealtime();
+            if (!ready && windowAt - readAt > CEC_SOON_EVERY_MS) {
+                readAt = windowAt;
+                handler.removeCallbacks(cecPoll);
+                handler.postDelayed(cecPoll, CEC_SOON_MS);
+            }
+        });
     }
 
     /** A view took focus: a remote's buttons in use, so the TV is on. Under the screensaver, dreamEnded tells. */
@@ -384,6 +408,7 @@ final class TvPower {
     /** The TV went off now: HDMI-CEC from it counts for its coming back from the next second on. */
     private void tvWentOff() {
         offWall = (System.currentTimeMillis() / 1000 + 1) * 1000;
+        offAt = SystemClock.elapsedRealtime();
         offCount++;
     }
 
@@ -488,6 +513,7 @@ final class TvPower {
             handler.postDelayed(cecPoll, CEC_WATCH_MS);
             return;
         }
+        readAt = SystemClock.elapsedRealtime();
         final boolean off = ready;
         final int count = offCount;
         final long since = off ? offWall : Long.MAX_VALUE;
@@ -500,9 +526,10 @@ final class TvPower {
     /**
      * cecRead: what the history says. The TV saying its power is on is as good as seeing it: the home is its to show,
      * and where it was showing the Chromecast as it went off, Home makes the Chromecast its active source at once, so
-     * its remote works from the start. The TV asking after its HDMI devices is its powering up too, but a TV might ask
-     * with its screen still off, and Home would turn that on: without Home, then, the Samsung selecting the Chromecast
-     * itself at the end of its check.
+     * its remote works from the start (2026-11-19: on at 23:12:40.9, its word at 23:12:43, Home at 23:12:44.4 and its
+     * remote's buttons arriving that second). The TV asking after its HDMI devices is its powering up too, but a TV
+     * might ask with its screen still off, and Home would turn that on: Home then only where it went off just now
+     * (BACK_SOON_MS), and otherwise the Samsung selecting the Chromecast itself at the end of its check.
      */
     private void cecRead(CecBus.Reading reading, boolean off, int count) {
         history = reading != null;
@@ -515,21 +542,32 @@ final class TvPower {
                         + "): some device on the TV's HDMI says no to them, and the TV's remote reaches nothing"
                     : "HDMI-CEC broadcasts go through again");
             }
+            if (refused) {
+                Runnable told = onRefused;
+                if (told != null) told.run();
+            }
             if (off && ready && count == offCount && interactive()) {
                 if (reading.tvSaysOn) {
                     boolean announce = backHere;
                     tvOn("the TV says its power is on");
-                    if (announce) {
-                        Events.log(service, TAG, "Home, so the Samsung's remote reaches the Chromecast now");
-                        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-                    }
+                    if (announce) home();
                 } else if (reading.tvAsked >= TV_ASKS_UP) {
+                    boolean announce = backHere && SystemClock.elapsedRealtime() - offAt < BACK_SOON_MS;
                     tvOn("the TV is asking after its HDMI devices (powering up)");
+                    if (announce) home();
                 }
             }
         }
+        long now = SystemClock.elapsedRealtime();
         handler.removeCallbacks(cecPoll);
-        handler.postDelayed(cecPoll, reading != null && ready ? CEC_POLL_MS : CEC_WATCH_MS);
+        handler.postDelayed(cecPoll, reading == null || !ready ? CEC_WATCH_MS
+            : now - replugAt < CEC_FAST_FOR_MS ? CEC_FAST_MS : CEC_POLL_MS);
+    }
+
+    /** Home, which sends One Touch Play: the Chromecast is the TV's active source, and its remote reaches it. */
+    private void home() {
+        Events.log(service, TAG, "Home, so the Samsung's remote reaches the Chromecast now");
+        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
     }
 
     /**
@@ -541,10 +579,7 @@ final class TvPower {
         if (SystemClock.elapsedRealtime() - rewokeAt < OWN_WAKE_MS) return;
         boolean wasOff = ready;
         tvOn("woken");
-        if (wasOff) {
-            Events.log(service, TAG, "Home, so the Samsung's remote reaches the Chromecast");
-            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-        }
+        if (wasOff) home();
     }
 
     /**
@@ -564,6 +599,7 @@ final class TvPower {
             replugAt = now;
             handler.removeCallbacks(poweredUp);
             handler.postDelayed(poweredUp, POWER_REPLY_MS);
+            cecPoll();
         }
     }
 
@@ -583,10 +619,7 @@ final class TvPower {
         }
         boolean announce = backHere;
         tvOn("HDMI came back (the TV powering up)");
-        if (announce) {
-            Events.log(service, TAG, "Home, so the Samsung's remote reaches the Chromecast now");
-            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
-        }
+        if (announce) home();
     }
 
     /** dreamEnded: the screensaver ended with the Chromecast still awake, so by a remote's button. */

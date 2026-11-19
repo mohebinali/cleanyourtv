@@ -8,7 +8,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-/** The prayer card's words in the TV's language: Arabic when the TV is in Arabic, English otherwise; 0-9 in both. */
+/**
+ * The words put on the TV, the prayer card's and JamNotice's, in the TV's language: Arabic when the TV is in Arabic,
+ * English otherwise; 0-9 in both.
+ */
 final class Text {
     final boolean ar;
     /** The TV's own 12- or 24-hour clock (Settings → Date & time). */
@@ -27,6 +30,16 @@ final class Text {
 
     /** Dhuhr's name on a Friday. */
     String jumuah() { return ar ? "الجمعة" : "Jumu'ah"; }
+
+    /** JamNotice's heading, and under it what cures it. */
+    String jamTitle() {
+        return ar ? "ريموت التلفزيون لا يصل إلى الكروم كاست" : "The TV's remote isn't reaching the Chromecast";
+    }
+
+    String jamWhatToDo() {
+        return ar ? "افصل أجهزة HDMI الأخرى عن التلفزيون، انتظر 10 ثوانٍ، ثم أعد توصيلها."
+                  : "Unplug the other HDMI devices from the TV, wait 10 seconds, then plug them back in.";
+    }
 
     /** The word with the prayer's name: "Maghrib Adhan", «أذان المغرب». */
     String adhanWord() { return ar ? "أذان" : "Adhan"; }

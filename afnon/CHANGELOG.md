@@ -4,6 +4,19 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.37] - 2026-11-19
+
+### Added
+- A panel at the foot of the screen when the Chromecast's HDMI-CEC broadcasts are being refused, so the TV's remote
+  reaches nothing: "Unplug the other HDMI devices from the TV, wait 10 seconds, then plug them back in." For 45 s,
+  again every ten minutes while it lasts (`JamNotice`; `--es test jam` shows it).
+
+### Fixed
+- The Samsung's remote took 9 s to work on a TV turned back on within seconds of going off: the TV then drops no
+  HDMI hot-plug and is not asked its power. Its asking after its HDMI devices now has Home pressed too, within two
+  minutes of its going off (later, a TV asking might have its screen off).
+- The TV's word on its power is read within 0.3 s of arriving, not 1 s, for a few seconds after its hot-plug.
+
 ## [0.36] - 2026-11-19
 
 ### Fixed
