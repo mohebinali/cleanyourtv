@@ -4,6 +4,13 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.39] - 2026-11-19
+
+### Fixed
+- 0.38's service fell over as its cover came down (it started again by itself 2 s later): the cover's picture was
+  thrown away while its window was still to be drawn one last time. The cover is now emptied before it is taken
+  down, at once, and its picture is a copy in ordinary memory. `--es test cover` runs the cover from adb.
+
 ## [0.38] - 2026-11-19
 
 ### Fixed

@@ -13,7 +13,8 @@ import android.os.Bundle;
  * From adb, through the .Test alias: `--es test adhan` puts up the prayer card for the next prayer 8 s later;
  * `--es test gate` closes the network to apps for 25 s and opens it again (TvPower, this app doing both);
  * `--es test dry` has TvPower only log what it would hide until the service restarts; `--es test jam` puts up
- * JamNotice's panel. And the owner's two choices:
+ * JamNotice's panel; `--es test cover` presses Home under HomeCover, as when the TV comes on. And the owner's two
+ * choices:
  * `--es hide off` leaves the Chromecast seen by phones while the TV is off (`on`, as it starts, hides it), and
  * `--es adb keep` has wireless debugging turned back on whenever Android turns it off (`leave` stops that).
  */
@@ -30,6 +31,7 @@ public class MainActivity extends Activity {
             if ("gate".equals(test) && RemoteKeys.tvPower != null) RemoteKeys.tvPower.testGate();
             if ("dry".equals(test) && RemoteKeys.tvPower != null) RemoteKeys.tvPower.testDry();
             if ("jam".equals(test) && RemoteKeys.notice != null) RemoteKeys.notice.test();
+            if ("cover".equals(test) && RemoteKeys.tvPower != null) RemoteKeys.tvPower.testCover();
             String hide = i.getStringExtra("hide");
             if (hide != null) Prefs.of(this).edit().putBoolean(TvPower.PREF_HIDE, !"off".equals(hide)).apply();
             String adb = i.getStringExtra("adb");

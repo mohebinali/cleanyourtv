@@ -12,8 +12,8 @@ android {
         // 28 (Android 9), kept from when the app turned Wi-Fi off and on (0.29 to 0.34): the service has only been
         // run at this level.
         targetSdk 28
-        versionCode 41
-        versionName '0.38'
+        versionCode 42
+        versionName '0.39'
     }
 
     compileOptions {

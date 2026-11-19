@@ -336,6 +336,11 @@ final class TvPower {
         });
     }
 
+    /** The test hook: Home pressed under cover, as when the TV comes on (a few seconds on, time to look). */
+    void testCover() {
+        handler.postDelayed(this::home, 3_000);
+    }
+
     /** The test hook's dry run: hiding from phones is only logged until the service restarts. */
     void testDry() {
         handler.post(() -> {

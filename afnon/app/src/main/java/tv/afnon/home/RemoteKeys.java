@@ -24,10 +24,10 @@ public class RemoteKeys extends AccessibilityService {
     static TvPower tvPower;
     static AdbKeeper adb;
     static JamNotice notice;
+    static HomeCover cover;
     private HomeTakeover takeover;
     private AirPlayReturn airplay;
     private CastKeeper cast;
-    private HomeCover cover;
 
     @Override
     protected void onServiceConnected() {

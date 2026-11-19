@@ -18,7 +18,8 @@ import android.widget.ImageView;
  * active source, which the TV's remote needs as the TV comes on (TvPower), and on Google TV Home opens Google's own
  * home screen before HomeTakeover can put the normal home back over it: about half a second of the wrong home
  * (2026-11-19 23:22:07.37 to 23:22:07.8). So a picture is taken of the screen as it is, shown over everything, Home
- * is pressed under it, and it is lifted once the normal home is back in front, or after 2.5 s. The picture is the
+ * is pressed under it, and it is lifted once the normal home is back in front, or after 2.5 s (from adb,
+ * `--es test cover` does all of it, MainActivity). The picture is the
  * service's one use of taking screenshots; it is held for that moment and thrown away. Where it can't be taken
  * (before Android 11, or protected video in front), the cover is black. Like the prayer card it is an accessibility
  * overlay, taking no focus and no touches.
@@ -33,7 +34,6 @@ final class HomeCover {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable lift = this::lift;
     private ImageView cover;
-    private Bitmap picture;
     /** Home has been pressed under the cover: the normal home coming up from now is the one that ends it. */
     private boolean pressed;
 
@@ -57,10 +57,14 @@ final class HomeCover {
                 new AccessibilityService.TakeScreenshotCallback() {
                     @Override
                     public void onSuccess(AccessibilityService.ScreenshotResult result) {
+                        // A copy in ordinary memory: the picture as taken lives in graphics memory, which a window
+                        // drawn without the graphics chip (as one being taken down is) can't draw from.
                         HardwareBuffer buffer = result.getHardwareBuffer();
                         Bitmap taken = Bitmap.wrapHardwareBuffer(buffer, result.getColorSpace());
+                        Bitmap copy = taken == null ? null : taken.copy(Bitmap.Config.ARGB_8888, false);
+                        if (taken != null) taken.recycle();
                         buffer.close();
-                        show(taken, press);
+                        show(copy, press);
                     }
 
                     @Override
@@ -108,7 +112,6 @@ final class HomeCover {
             return;
         }
         cover = view;
-        picture = taken;
         pressed = false;
         handler.postDelayed(() -> {
             pressed = true;
@@ -125,17 +128,22 @@ final class HomeCover {
         view.animate().alpha(0f).setDuration(FADE_MS).withEndAction(this::remove).start();
     }
 
+    /**
+     * The cover taken down: emptied of its picture first and at once, as a window still to be drawn one last time
+     * must not find its picture gone (0.38 threw the picture away here, and the service fell over on that last draw).
+     * The picture is left to Android to free.
+     */
     private void remove() {
-        if (cover == null) return;
-        cover.animate().cancel();
+        ImageView view = cover;
+        if (view == null) return;
+        cover = null;
+        pressed = false;
+        view.animate().cancel();
+        view.setImageDrawable(null);
         try {
-            service.getSystemService(WindowManager.class).removeView(cover);
+            service.getSystemService(WindowManager.class).removeViewImmediate(view);
         } catch (RuntimeException ignored) {
             // Already gone with the service.
         }
-        cover = null;
-        if (picture != null) picture.recycle();
-        picture = null;
-        pressed = false;
     }
 }
