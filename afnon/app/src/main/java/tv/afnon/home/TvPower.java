@@ -161,6 +161,8 @@ final class TvPower {
     volatile Runnable onTvOn;
     /** Told, at each reading, while HDMI-CEC broadcasts are being refused (JamNotice says what to do). */
     volatile Runnable onRefused;
+    /** Covers the stock home's flash as Home is pressed; without one, Home is pressed in the open. */
+    volatile HomeCover cover;
     // Everything below is touched on the thread only, but for ready, read by AirPlayReturn.
     /** The TV is off, as far as is known, and the Chromecast kept awake for it, hidden from phones. */
     private volatile boolean ready;
@@ -564,10 +566,16 @@ final class TvPower {
             : now - replugAt < CEC_FAST_FOR_MS ? CEC_FAST_MS : CEC_POLL_MS);
     }
 
-    /** Home, which sends One Touch Play: the Chromecast is the TV's active source, and its remote reaches it. */
+    /**
+     * Home, which sends One Touch Play: the Chromecast is the TV's active source, and its remote reaches it. Under
+     * cover, since Home also flashes the stock home (HomeCover).
+     */
     private void home() {
         Events.log(service, TAG, "Home, so the Samsung's remote reaches the Chromecast now");
-        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+        Runnable press = () -> service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+        HomeCover over = cover;
+        if (over != null) over.press(press);
+        else press.run();
     }
 
     /**

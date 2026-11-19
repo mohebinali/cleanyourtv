@@ -35,7 +35,8 @@ package is still `tv.afnon.home`, its name before 0.24, so it updates in place.
   the Samsung's remote works at once (3.5 s after power-on, 2026-11-19) rather than after the Samsung's own 9 to 12 s
   check of its HDMI devices; turned straight back on (within 2 minutes) the TV only asks, and Home is pressed on
   that. A TV turned back on within the 10 s wakes the Chromecast itself, the slower way it always did, and Home is
-  pressed then too.
+  pressed then too. Home also opens Google's own home for half a second before the normal home is back over it, so
+  it is pressed under a picture of the screen as it was, lifted once the normal home is in front (`HomeCover.java`).
   Waking the Chromecast leaves the TV off only with its HDMI-CEC power_control_mode set to none (Install), so the
   Chromecast's own power button no longer turns the TV off or on (`TvPower.java`).
 - **Casting that answers.** With another home in front of Google TV's own, nothing holds the Cast receiver, and
@@ -57,7 +58,8 @@ while the TV is off, and wireless debugging, back on where the owner asked for t
 with it the app sets one setting of the AirPlay receiver (usb_only, on while the TV is off; the receiver takes
 settings only from apps holding DUMP) and reads one dump, the HDMI service's, for the HDMI-CEC messages between the
 TV and the Chromecast (the TV powering up; broadcasts refused). It keeps a short diary of the TV going off and on
-in its own files (`files/events.log`). The service reads
+in its own files (`files/events.log`). It takes one picture of the screen as the TV comes on, shows it for a moment
+over the stock home's flash and throws it away (the service's one use of taking screenshots). The service reads
 no app's screen except the AirPlay receiver's (for "1 connected" / "0 connected"), and which app is in front (its name
 only); it notices that the focus moved, not what took it.
 It reads one system setting, the TV's HDMI-CEC state as the Chromecast's vendor service reports it (whether the TV
@@ -139,6 +141,7 @@ refused broadcast, is lost when the Chromecast restarts.
 | `HomeTakeover.java`, `ProbeActivity.java`, `MainActivity.java` | Home kept on the normal home |
 | `AirPlayReturn.java`, `WakeActivity.java` | AirPlay: a phone's picture brought to the TV, Home again when it leaves |
 | `TvPower.java`, `CecBus.java` | The Chromecast kept ready and hidden from phones while the TV is off |
+| `HomeCover.java` | The stock home's flash covered as Home is pressed for the TV's remote |
 | `JamNotice.java` | What to do when the TV's remote reaches nothing, said on the TV |
 | `CastKeeper.java` | The Cast receiver kept from being frozen |
 | `AdbKeeper.java` | Wireless debugging kept on, where asked to |

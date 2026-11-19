@@ -12,8 +12,9 @@ import android.view.accessibility.AccessibilityEvent;
  * the phone leaves; {@link TvPower}, which keeps the Chromecast awake and hidden from phones while the TV is off, so
  * it is there the moment the TV comes back, and has {@link JamNotice} say what to do when the TV's remote stops
  * reaching the Chromecast; {@link CastKeeper}, which keeps Android from freezing the Cast receiver; and
- * {@link AdbKeeper}, which keeps wireless debugging on where asked to. It filters no keys and reads no app's
- * screen but the AirPlay receiver's (focus moving is noticed, not what has it), and the app has no network access.
+ * {@link AdbKeeper}, which keeps wireless debugging on where asked to. It filters no keys and reads no app's screen
+ * but the AirPlay receiver's (focus moving is noticed, not what has it); it takes one picture of the screen as the TV
+ * comes on, to cover the stock home's flash ({@link HomeCover}), and keeps none. The app has no network access.
  * Turned on with:
  * settings put secure enabled_accessibility_services tv.afnon.home/.RemoteKeys
  */
@@ -26,6 +27,7 @@ public class RemoteKeys extends AccessibilityService {
     private HomeTakeover takeover;
     private AirPlayReturn airplay;
     private CastKeeper cast;
+    private HomeCover cover;
 
     @Override
     protected void onServiceConnected() {
@@ -44,6 +46,9 @@ public class RemoteKeys extends AccessibilityService {
         if (notice != null) notice.stop();
         notice = new JamNotice(this);
         tvPower.onRefused = notice::show;
+        if (cover != null) cover.stop();
+        cover = new HomeCover(this);
+        tvPower.cover = cover;
         airplay.checkFront();
         if (cast != null) cast.stop();
         cast = new CastKeeper(this);
@@ -69,6 +74,8 @@ public class RemoteKeys extends AccessibilityService {
         adb = null;
         if (notice != null) notice.stop();
         notice = null;
+        if (cover != null) cover.stop();
+        cover = null;
         super.onDestroy();
     }
 
@@ -80,6 +87,10 @@ public class RemoteKeys extends AccessibilityService {
         }
         if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && tvPower != null) {
             tvPower.onWindow();
+        }
+        if (cover != null && event.getPackageName() != null
+            && HomeTakeover.NORMAL_HOME.contentEquals(event.getPackageName())) {
+            cover.homeIsBack();
         }
         if (takeover != null) takeover.onWindowChanged(event);
         if (airplay != null) airplay.onWindowChanged(event);

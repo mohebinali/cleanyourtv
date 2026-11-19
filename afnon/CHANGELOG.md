@@ -4,6 +4,14 @@ All notable changes to the Prayer app (Afnon before 0.24). Versions match `versi
 
 ## [Unreleased]
 
+## [0.38] - 2026-11-19
+
+### Fixed
+- Google's own home showed for half a second as the TV came on: Home, pressed for the TV's remote, opens it before
+  the normal home is put back over it. Home is now pressed under a picture of the screen as it was (`HomeCover`),
+  lifted once the normal home is back in front. The service may take screenshots for that (canTakeScreenshot); the
+  picture is held for that moment only.
+
 ## [0.37] - 2026-11-19
 
 ### Added
